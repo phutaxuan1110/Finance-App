@@ -7,6 +7,7 @@ import { BottomNav } from "@/components/navigation/BottomNav";
 import { Sidebar } from "@/components/navigation/Sidebar";
 import { AddTransactionSheet } from "@/components/transactions/AddTransactionSheet";
 import { InstallHintBanner } from "@/components/pwa/InstallHintBanner";
+import { MigrationBanner } from "@/components/auth/MigrationBanner";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -27,6 +28,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex-1 min-w-0">
         <main className="mx-auto w-full max-w-3xl px-4 md:px-8 main-content-padding">
           <InstallHintBanner />
+          <MigrationBanner />
           {children}
         </main>
       </div>

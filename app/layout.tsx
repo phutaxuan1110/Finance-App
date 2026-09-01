@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
+import { AuthProvider } from "@/lib/auth-context";
 
 // NOTE: We intentionally use a system font stack (see --font-sans in
 // globals.css) instead of next/font/google here, because the sandbox this
@@ -45,7 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="vi" className="h-full">
       <body className="min-h-full app-shell-bg overscroll-none">
-        {children}
+        <AuthProvider>{children}</AuthProvider>
         <ServiceWorkerRegister />
       </body>
     </html>

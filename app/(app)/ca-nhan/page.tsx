@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Download,
   Upload,
@@ -9,8 +10,12 @@ import {
   Info,
   ChevronRight,
   Tags,
+  Cloud,
+  CloudOff,
+  LogOut,
 } from "lucide-react";
 import { useData } from "@/lib/data-context";
+import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/lib/toast-context";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -23,8 +28,10 @@ import { formatVNDInput, parseVNDInput } from "@/lib/utils";
 import type { UserSettings } from "@/types";
 
 export default function SettingsPage() {
-  const { data, loading, saveSettings, resetDemoData, wipeAllData, exportJSON, importJSON } = useData();
+  const { data, loading, isCloudSynced, saveSettings, resetDemoData, wipeAllData, exportJSON, importJSON } = useData();
+  const { user, isCloudEnabled, signOut } = useAuth();
   const { showToast } = useToast();
+  const router = useRouter();
 
   const [name, setName] = useState(data?.settings.name ?? "");
   const [monthStartDay, setMonthStartDay] = useState(data?.settings.financialMonthStartDay ?? 1);
@@ -119,18 +126,56 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleSignOut() {
+    await signOut();
+    router.replace("/dang-nhap");
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <h1 className="text-2xl font-semibold">Cá nhân</h1>
 
       <Card className="flex items-center gap-4">
         <SnakeMascot expression="happy" size={56} />
-        <div>
-          <p className="font-semibold">{data.settings.name}</p>
-          <p className="text-xs text-text-muted">
+        <div className="min-w-0">
+          <p className="font-semibold truncate">{data.settings.name}</p>
+          <p className="text-xs text-text-muted truncate">
             {APP_NAME} · {APP_TAGLINE}
           </p>
         </div>
+      </Card>
+
+      <Card>
+        <div className="flex items-center gap-2 mb-1">
+          {isCloudSynced ? (
+            <Cloud size={18} className="text-success" />
+          ) : (
+            <CloudOff size={18} className="text-text-muted" />
+          )}
+          <CardTitle>{isCloudSynced ? "Đã đồng bộ trên đám mây" : "Chỉ lưu trên thiết bị này"}</CardTitle>
+        </div>
+        {isCloudSynced ? (
+          <>
+            <p className="text-sm text-text-muted mb-4">
+              Dữ liệu của bạn được lưu vào tài khoản{" "}
+              <span className="text-text-primary font-medium">{user?.email}</span> và có thể xem trên mọi thiết bị.
+            </p>
+            <Button variant="outline" onClick={handleSignOut}>
+              <LogOut size={16} /> Đăng xuất
+            </Button>
+          </>
+        ) : isCloudEnabled ? (
+          <>
+            <p className="text-sm text-text-muted mb-4">
+              Đăng nhập để đồng bộ dữ liệu lên tài khoản và xem trên nhiều thiết bị.
+            </p>
+            <Button onClick={() => router.push("/dang-nhap")}>Đăng nhập / Đăng ký</Button>
+          </>
+        ) : (
+          <p className="text-sm text-text-muted">
+            Tính năng đăng nhập và đồng bộ đám mây chưa được cấu hình cho bản dựng này.
+          </p>
+        )}
       </Card>
 
       <Card>
@@ -244,8 +289,11 @@ export default function SettingsPage() {
           <CardTitle>Quyền riêng tư</CardTitle>
         </div>
         <p className="text-sm text-text-muted leading-relaxed">
-          Dữ liệu của bạn được lưu trên thiết bị này. Ứng dụng không yêu cầu thông tin đăng nhập ngân hàng, mã OTP, mã PIN
-          thẻ hoặc số thẻ đầy đủ. SNEK không gửi dữ liệu tài chính của bạn ra bất kỳ máy chủ nào.
+          {isCloudSynced
+            ? "Dữ liệu của bạn được lưu trong tài khoản Supabase riêng của bạn, được bảo vệ bằng Row Level Security nên chỉ bạn mới đọc được. "
+            : "Dữ liệu của bạn được lưu trên thiết bị này. "}
+          Ứng dụng không yêu cầu thông tin đăng nhập ngân hàng, mã OTP, mã PIN thẻ hoặc số thẻ đầy đủ. SNEK không gửi
+          dữ liệu tài chính của bạn ra bất kỳ máy chủ nào khác ngoài tài khoản của chính bạn.
         </p>
       </Card>
 
