@@ -7,13 +7,17 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
       ref={ref}
       className={cn(
         // min-w-0 overrides the browser default of `min-width: auto` on
-        // form controls, which for native pickers (date, datetime-local)
-        // is based on their own rendered content — e.g. a long localized
-        // "01:05 ngày 2 thg 9, 2026" string can otherwise force the input
-        // (and the flex column item wrapping it) wider than `width: 100%`
-        // would suggest, making that one field visibly wider than its
-        // siblings and, in a flex layout, overflow past the container.
-        "h-12 w-full min-w-0 rounded-2xl bg-white/[0.06] border border-white/[0.08] px-4 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent-soft",
+        // form controls. appearance-none is the actual fix for the
+        // longstanding iOS/WebKit bug where `<input type="date">` and
+        // `type="datetime-local">` ignore `width: 100%` and instead render
+        // at their own native intrinsic width (based on the OS's date/time
+        // chrome, not the CSS box) — without it, those two field types can
+        // visibly stretch past every other field's right edge, all the way
+        // to the container boundary, regardless of width/min-width. This
+        // does not disable the native date/time picker itself on iOS —
+        // tapping the field still opens it — it only removes the OS's
+        // default control chrome so our own width/border/background apply.
+        "block h-12 w-full min-w-0 appearance-none rounded-2xl bg-white/[0.06] border border-white/[0.08] px-4 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent-soft [&::-webkit-date-and-time-value]:text-left",
         className
       )}
       {...props}
