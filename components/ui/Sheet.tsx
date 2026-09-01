@@ -15,9 +15,19 @@ interface SheetProps {
   className?: string;
   /** Use a higher stacking layer when this sheet can open on top of another sheet. */
   layer?: "base" | "nested";
+  /**
+   * Optional action row (e.g. a Huỷ/Lưu CTA), rendered outside the
+   * scrollable body and pinned to the bottom of the sheet regardless of
+   * how long the body is or how far it's scrolled — content never has to
+   * be scrolled past to reach it. Handles the iPhone safe-area (Home
+   * Indicator) itself. When omitted, Sheet renders exactly as it always
+   * has (a single scrollable region below the header), so every existing
+   * caller that doesn't pass this prop is completely unaffected.
+   */
+  footer?: React.ReactNode;
 }
 
-export function Sheet({ open, onClose, title, children, className, layer = "base" }: SheetProps) {
+export function Sheet({ open, onClose, title, children, className, layer = "base", footer }: SheetProps) {
   useEffect(() => {
     if (!open) return;
     const original = document.body.style.overflow;
@@ -49,17 +59,32 @@ export function Sheet({ open, onClose, title, children, className, layer = "base
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
             className={cn(
-              "relative z-10 w-full sm:max-w-lg max-h-[92dvh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-bg-elevated border border-white/10 safe-bottom",
+              // flex-col + overflow-hidden here (instead of the whole card
+              // scrolling) is what lets the header stay put and the footer
+              // stay pinned below, with only the middle body scrolling.
+              "relative z-10 flex w-full sm:max-w-lg max-h-[92dvh] flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl bg-bg-elevated border border-white/10",
+              // Only needed when there's no footer: with a footer, the
+              // safe-area inset is applied to the footer itself instead
+              // (see below), since that's the true bottom-most content.
+              !footer && "safe-bottom",
               className
             )}
           >
-            <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-bg-elevated/95 backdrop-blur border-b border-white/[0.06]">
+            <div className="shrink-0 flex items-center justify-between px-5 py-4 bg-bg-elevated/95 backdrop-blur border-b border-white/[0.06]">
               <h2 className="text-lg font-semibold">{title}</h2>
               <Button variant="ghost" size="icon" onClick={onClose} aria-label="Đóng">
                 <X size={20} />
               </Button>
             </div>
-            <div className="p-5">{children}</div>
+            <div className="flex-1 overflow-y-auto p-5">{children}</div>
+            {footer && (
+              <div
+                className="shrink-0 border-t border-white/[0.06] bg-bg-elevated/95 backdrop-blur px-5 pt-3"
+                style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+              >
+                {footer}
+              </div>
+            )}
           </motion.div>
         </div>
       )}

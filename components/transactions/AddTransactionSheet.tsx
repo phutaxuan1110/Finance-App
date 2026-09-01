@@ -80,6 +80,17 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
   const selectedAccount = accounts.find((a) => a.id === accountId);
   const isBulkScopeEdit = !!editingTransaction?.recurringSeriesId && editScope !== "only";
 
+  // Real-time required-field state, independent of whether the user has
+  // attempted to submit yet — the CTA's disabled state and the account /
+  // category supporting text both need to reflect this live, not only
+  // after a failed Save attempt.
+  const amountValue = parseVNDInput(amountDisplay);
+  const accountMissing = !accountId;
+  const categoryMissing = !categoryId;
+  const recurrenceEndDateMissing = !editingTransaction && isRecurring && endMode === "date" && !endDateStr;
+  const canSave =
+    amountValue > 0 && !accountMissing && !categoryMissing && Boolean(dateValue) && !recurrenceEndDateMissing;
+
   useEffect(() => {
     if (!open) return;
 
@@ -157,7 +168,7 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
     const newErrors: Record<string, string> = {};
     const amount = parseVNDInput(amountDisplay);
     if (!amount || amount <= 0) newErrors.amount = "Vui lòng nhập số tiền hợp lệ.";
-    if (!accountId) newErrors.accountId = "Vui lòng chọn tài khoản.";
+    if (!accountId) newErrors.accountId = "Vui lòng chọn tài khoản hoặc ví.";
     if (!categoryId) newErrors.categoryId = "Vui lòng chọn danh mục.";
     if (!dateValue) newErrors.dateValue = "Vui lòng chọn ngày giờ.";
     if (isRecurring && endMode === "date" && !endDateStr) newErrors.recurrence = "Vui lòng chọn ngày kết thúc.";
@@ -167,6 +178,7 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
 
   async function handleSubmit() {
     if (saving) return; // guard against double-click creating duplicate series
+    if (!canSave) return; // CTA should already be disabled in this case, but never trust that alone
     if (!validate()) return;
     setSaving(true);
 
@@ -267,7 +279,23 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
           : "Thêm khoản thu";
 
   return (
-    <Sheet open={open} onClose={onClose} title={title}>
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={title}
+      footer={
+        step === "form" ? (
+          <div className="flex gap-3">
+            <Button type="button" variant="secondary" className="flex-1" onClick={onClose} disabled={saving}>
+              Huỷ
+            </Button>
+            <Button type="submit" form="txn-form" className="flex-1" disabled={saving || !canSave}>
+              {saving ? "Đang lưu…" : "Lưu"}
+            </Button>
+          </div>
+        ) : undefined
+      }
+    >
       {step === "type" && (
         <div className="grid grid-cols-2 gap-3">
           {TYPE_OPTIONS.map(({ type: t, label, icon: Icon }) => (
@@ -285,6 +313,7 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
 
       {step === "form" && (
         <form
+          id="txn-form"
           className="flex flex-col gap-5"
           onSubmit={(e) => {
             e.preventDefault();
@@ -326,7 +355,7 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
               </span>
               <ChevronDown size={16} className="text-text-muted shrink-0" />
             </button>
-            {errors.accountId && <p className="text-xs text-danger mt-1">{errors.accountId}</p>}
+            {accountMissing && <p className="text-xs text-danger mt-1">Vui lòng chọn tài khoản hoặc ví.</p>}
           </div>
 
           <div>
@@ -359,7 +388,7 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
                 <span className="text-center leading-tight">Thêm mới</span>
               </button>
             </div>
-            {errors.categoryId && <p className="text-xs text-danger mt-1">{errors.categoryId}</p>}
+            {categoryMissing && <p className="text-xs text-danger mt-1">Vui lòng chọn danh mục.</p>}
           </div>
 
           <div>
@@ -443,15 +472,6 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
             <p className="text-[11px] text-text-muted mt-1">
               Ảnh chỉ được lưu tạm trên trình duyệt này để xem trước, có thể không tồn tại lâu dài do giới hạn lưu trữ cục bộ.
             </p>
-          </div>
-
-          <div className="flex gap-3 pt-2">
-            <Button type="button" variant="secondary" className="flex-1" onClick={onClose} disabled={saving}>
-              Huỷ
-            </Button>
-            <Button type="submit" className="flex-1" disabled={saving}>
-              {saving ? "Đang lưu…" : "Lưu"}
-            </Button>
           </div>
         </form>
       )}

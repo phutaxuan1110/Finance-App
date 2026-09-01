@@ -40,7 +40,10 @@ export function RecurrencePicker({
   const dates = computeRecurrenceDates(input);
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
+    // No horizontal padding/border here (unlike before): those fields must
+    // sit at the exact same left/right edge as every other field in the
+    // form above and below this section, not indented inside a nested card.
+    <div className="flex flex-col gap-4">
       <div>
         <Label htmlFor="recur-frequency">Chu kỳ</Label>
         <Select
