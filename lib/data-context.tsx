@@ -40,6 +40,7 @@ interface DataContextValue {
 
   // Categories
   saveCategory: (category: Category) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
 
   resetDemoData: () => Promise<void>;
   wipeAllData: () => Promise<void>;
@@ -341,6 +342,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [repository, refresh]
   );
 
+  const deleteCategory = useCallback(
+    async (id: string) => {
+      await repository.deleteCategory(id);
+      await refresh();
+    },
+    [repository, refresh]
+  );
+
   const resetDemoData = useCallback(async () => {
     await repository.resetToDemoData();
     await refresh();
@@ -383,6 +392,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       getBudgetFor,
       saveSettings,
       saveCategory,
+      deleteCategory,
       resetDemoData,
       wipeAllData,
       exportJSON,
@@ -407,6 +417,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       getBudgetFor,
       saveSettings,
       saveCategory,
+      deleteCategory,
       resetDemoData,
       wipeAllData,
       exportJSON,

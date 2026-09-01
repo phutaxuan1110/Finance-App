@@ -9,7 +9,24 @@ import type {
 import { buildDemoData } from "@/lib/seed";
 import { ensureCategoryTypes } from "@/lib/categoryMigration";
 import { supabase } from "@/lib/supabase/client";
+import { getErrorMessage } from "@/lib/utils";
 import type { DataRepository } from "./types";
+
+/**
+ * Turns a PostgREST error (`{ message, details, hint, code }`) into a real,
+ * current-realm `Error`. We deliberately never throw the raw PostgREST
+ * object as-is: bundling/version differences have, in the past, produced
+ * error objects whose prototype chain doesn't reliably satisfy
+ * `instanceof Error` for every caller, which silently downgraded a real,
+ * actionable database error (RLS violation, missing column, constraint
+ * violation, etc.) into a generic "please try again" message — hiding the
+ * actual root cause instead of surfacing it.
+ */
+function dbError(error: { message: string; details?: string; hint?: string; code?: string }): Error {
+  const parts = [error.message];
+  if (error.hint) parts.push(error.hint);
+  return new Error(getErrorMessage(error, parts.filter(Boolean).join(" — ")));
+}
 
 // ---------------------------------------------------------------------------
 // Row <-> app-type mapping. The DB uses snake_case columns; the app's types
@@ -275,7 +292,7 @@ export class SupabaseRepository implements DataRepository {
   async listAccounts(): Promise<Account[]> {
     const db = assertClient();
     const { data, error } = await db.from("accounts").select("*").order("created_at");
-    if (error) throw error;
+    if (error) throw dbError(error);
     return (data as AccountRow[]).map(rowToAccount);
   }
 
@@ -286,40 +303,40 @@ export class SupabaseRepository implements DataRepository {
       await db.from("accounts").update({ is_primary: false }).eq("user_id", this.userId).neq("id", account.id);
     }
     const { error } = await db.from("accounts").upsert(accountToRow(account, this.userId));
-    if (error) throw error;
+    if (error) throw dbError(error);
     return account;
   }
 
   async deleteAccount(id: string): Promise<void> {
     const db = assertClient();
     const { error } = await db.from("accounts").delete().eq("id", id);
-    if (error) throw error;
+    if (error) throw dbError(error);
   }
 
   async listTransactions(): Promise<Transaction[]> {
     const db = assertClient();
     const { data, error } = await db.from("transactions").select("*").order("date", { ascending: false });
-    if (error) throw error;
+    if (error) throw dbError(error);
     return (data as TransactionRow[]).map(rowToTransaction);
   }
 
   async upsertTransaction(transaction: Transaction): Promise<Transaction> {
     const db = assertClient();
     const { error } = await db.from("transactions").upsert(transactionToRow(transaction, this.userId));
-    if (error) throw error;
+    if (error) throw dbError(error);
     return transaction;
   }
 
   async deleteTransaction(id: string): Promise<void> {
     const db = assertClient();
     const { error } = await db.from("transactions").delete().eq("id", id);
-    if (error) throw error;
+    if (error) throw dbError(error);
   }
 
   async listCategories(): Promise<Category[]> {
     const db = assertClient();
     const { data, error } = await db.from("categories").select("*");
-    if (error) throw error;
+    if (error) throw dbError(error);
     const categories = (data as CategoryRow[]).map(rowToCategory);
 
     // Defensive migration for any category missing a valid type (see
@@ -343,27 +360,27 @@ export class SupabaseRepository implements DataRepository {
   async upsertCategory(category: Category): Promise<Category> {
     const db = assertClient();
     const { error } = await db.from("categories").upsert(categoryToRow(category, this.userId));
-    if (error) throw error;
+    if (error) throw dbError(error);
     return category;
   }
 
   async deleteCategory(id: string): Promise<void> {
     const db = assertClient();
     const { error } = await db.from("categories").delete().eq("id", id);
-    if (error) throw error;
+    if (error) throw dbError(error);
   }
 
   async listBudgets(): Promise<MonthlyBudget[]> {
     const db = assertClient();
     const { data, error } = await db.from("budgets").select("*");
-    if (error) throw error;
+    if (error) throw dbError(error);
     return (data as BudgetRow[]).map(rowToBudget);
   }
 
   async upsertBudget(budget: MonthlyBudget): Promise<MonthlyBudget> {
     const db = assertClient();
     const { error } = await db.from("budgets").upsert(budgetToRow(budget, this.userId));
-    if (error) throw error;
+    if (error) throw dbError(error);
     return budget;
   }
 
@@ -374,7 +391,7 @@ export class SupabaseRepository implements DataRepository {
       .select("*")
       .eq("user_id", this.userId)
       .maybeSingle();
-    if (error) throw error;
+    if (error) throw dbError(error);
     if (!data) {
       // First time this user has ever loaded the app: create their row.
       const defaults: UserSettings = {
@@ -403,7 +420,7 @@ export class SupabaseRepository implements DataRepository {
       default_monthly_limit: settings.defaultMonthlyLimit,
       updated_at: new Date().toISOString(),
     });
-    if (error) throw error;
+    if (error) throw dbError(error);
     return settings;
   }
 
@@ -448,21 +465,21 @@ export class SupabaseRepository implements DataRepository {
       const { error } = await db
         .from("categories")
         .upsert(parsed.categories.map((c) => categoryToRow(c, this.userId)));
-      if (error) throw error;
+      if (error) throw dbError(error);
     }
     if (parsed.accounts.length) {
       const { error } = await db.from("accounts").upsert(parsed.accounts.map((a) => accountToRow(a, this.userId)));
-      if (error) throw error;
+      if (error) throw dbError(error);
     }
     if (parsed.transactions.length) {
       const { error } = await db
         .from("transactions")
         .upsert(parsed.transactions.map((t) => transactionToRow(t, this.userId)));
-      if (error) throw error;
+      if (error) throw dbError(error);
     }
     if (parsed.budgets?.length) {
       const { error } = await db.from("budgets").upsert(parsed.budgets.map((b) => budgetToRow(b, this.userId)));
-      if (error) throw error;
+      if (error) throw dbError(error);
     }
     if (parsed.settings) {
       await this.updateSettings(parsed.settings);
@@ -478,6 +495,6 @@ export class SupabaseRepository implements DataRepository {
     const { error } = await db
       .from("user_settings")
       .upsert({ user_id: this.userId, meta: { ...currentMeta, ...patch } });
-    if (error) throw error;
+    if (error) throw dbError(error);
   }
 }

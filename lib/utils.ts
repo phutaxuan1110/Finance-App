@@ -40,6 +40,29 @@ export function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+/**
+ * Extracts a human-readable message from anything a failed `await` might
+ * throw, without relying on `instanceof Error` — which silently misses:
+ *  - `DOMException` (e.g. localStorage's `QuotaExceededError`), which does
+ *    NOT extend `Error` in browsers;
+ *  - Supabase/PostgREST error objects, if a bundling/realm boundary ever
+ *    makes their prototype chain not match this page's own `Error`;
+ *  - plain `{ message }`-shaped objects some libraries reject with.
+ * Falling back to a generic string is fine as a last resort, but only once
+ * every reasonable shape has been checked — otherwise real, actionable
+ * error text (e.g. a Postgres/RLS error) gets masked behind a useless
+ * generic message, which makes the actual bug impossible to diagnose.
+ */
+export function getErrorMessage(err: unknown, fallback: string): string {
+  if (typeof err === "string" && err.trim()) return err;
+  if (err instanceof Error && err.message) return err.message;
+  if (err && typeof err === "object") {
+    const message = (err as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return fallback;
+}
+
 export const VIETNAMESE_WEEKDAYS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
 export const VIETNAMESE_MONTHS = [
   "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6",

@@ -4,6 +4,8 @@
  * crashes the app.
  */
 
+import { getErrorMessage } from "@/lib/utils";
+
 const NAMESPACE = "snek:v1:";
 
 export function storageGet<T>(key: string, fallback: T): T {
@@ -28,12 +30,15 @@ export function storageSet<T>(key: string, value: T): void {
     // ignored, so callers like `upsertCategory` believed the save had
     // succeeded when nothing was actually persisted — the in-memory object
     // looked right until the next reload, when the old data reappeared.
-    // Re-throwing lets repository methods (and ultimately the UI) know the
-    // write genuinely failed, so they can surface an error instead of a
-    // false "success".
-    throw err instanceof Error
-      ? err
-      : new Error("Không thể lưu dữ liệu vào bộ nhớ trên thiết bị (có thể do bộ nhớ đã đầy).");
+    //
+    // Note: what `localStorage.setItem` throws is a `DOMException`, which
+    // does NOT extend `Error` in browsers — so we deliberately always wrap
+    // it in a real, current-realm `Error` here (rather than re-throwing it
+    // as-is) so every caller up the chain can rely on a plain `Error` with
+    // a real `.message`, instead of having to special-case `DOMException`.
+    throw new Error(
+      getErrorMessage(err, "Không thể lưu dữ liệu vào bộ nhớ trên thiết bị (có thể do bộ nhớ đã đầy).")
+    );
   }
 }
 

@@ -115,6 +115,12 @@ export class LocalStorageRepository implements DataRepository {
   async deleteCategory(id: string): Promise<void> {
     const data = readData();
     data.categories = data.categories.filter((c) => c.id !== id);
+    // Mirrors the Supabase schema's `category_id ... on delete set null`:
+    // transactions that used this category are kept, just unlinked, rather
+    // than left pointing at an id that no longer exists.
+    data.transactions = data.transactions.map((t) =>
+      t.categoryId === id ? { ...t, categoryId: undefined } : t
+    );
     writeData(data);
   }
 

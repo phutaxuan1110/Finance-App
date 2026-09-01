@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ImagePlus, X } from "lucide-react";
+import { ImagePlus, Trash2, X } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CategoryIcon, CATEGORY_ICON_OPTIONS } from "@/lib/categoryIcons";
 import { compressImageToDataUrl } from "@/lib/imageCompression";
-import { cn, uid } from "@/lib/utils";
+import { cn, getErrorMessage, uid } from "@/lib/utils";
 import { useData } from "@/lib/data-context";
 import { useToast } from "@/lib/toast-context";
 import type { Category, CategoryKind } from "@/types";
@@ -28,7 +29,7 @@ interface CategoryFormDialogProps {
 }
 
 export function CategoryFormDialog({ open, onClose, kind, onSaved, editingCategory }: CategoryFormDialogProps) {
-  const { data, saveCategory } = useData();
+  const { data, saveCategory, deleteCategory } = useData();
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -39,6 +40,8 @@ export function CategoryFormDialog({ open, onClose, kind, onSaved, editingCatego
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [imageProcessing, setImageProcessing] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const isEditing = !!editingCategory;
   const effectiveType: CategoryKind = editingCategory?.type ?? kind;
@@ -59,6 +62,8 @@ export function CategoryFormDialog({ open, onClose, kind, onSaved, editingCatego
     setError("");
     setSaving(false);
     setImageProcessing(false);
+    setDeleteConfirmOpen(false);
+    setDeleting(false);
   }, [open, editingCategory]);
 
   async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -73,7 +78,7 @@ export function CategoryFormDialog({ open, onClose, kind, onSaved, editingCatego
       const dataUrl = await compressImageToDataUrl(file);
       setImageDataUrl(dataUrl);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Không thể xử lý ảnh này.", "error");
+      showToast(getErrorMessage(err, "Không thể xử lý ảnh này."), "error");
     } finally {
       setImageProcessing(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -124,13 +129,36 @@ export function CategoryFormDialog({ open, onClose, kind, onSaved, editingCatego
       onClose();
     } catch (err) {
       // Keep the dialog open and the user's edits intact so they can retry
-      // without re-entering anything.
-      setError(err instanceof Error ? err.message : "Không thể lưu danh mục.");
-      showToast(err instanceof Error ? err.message : "Không thể lưu danh mục. Vui lòng thử lại.", "error");
+      // without re-entering anything. `getErrorMessage` surfaces the real
+      // underlying error (DB/storage message) instead of a generic string
+      // whenever one is available, so the actual cause is visible instead
+      // of being hidden behind "vui lòng thử lại".
+      const message = getErrorMessage(err, "Không thể lưu danh mục. Vui lòng thử lại.");
+      setError(message);
+      showToast(message, "error");
     } finally {
       // Always leave the "Đang lưu…" state, whether the save succeeded or
       // failed, so the button never gets stuck.
       setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!editingCategory || deleting) return;
+    setDeleting(true);
+    try {
+      await deleteCategory(editingCategory.id);
+      // Any transaction that used this category is kept, just unlinked
+      // (shown as uncategorized) — nothing else is deleted.
+      showToast("Đã xoá danh mục.");
+      setDeleteConfirmOpen(false);
+      onClose();
+    } catch (err) {
+      showToast(getErrorMessage(err, "Không thể xoá danh mục. Vui lòng thử lại."), "error");
+      // Keep the confirm dialog open so the user can see the failure state
+      // and retry without having to re-open it.
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -253,10 +281,35 @@ export function CategoryFormDialog({ open, onClose, kind, onSaved, editingCatego
           </div>
         </div>
 
-        <Button onClick={handleSubmit} disabled={saving || imageProcessing}>
+        <Button onClick={handleSubmit} disabled={saving || imageProcessing || deleting}>
           {saving ? "Đang lưu…" : isEditing ? "Lưu thay đổi" : "Thêm danh mục"}
         </Button>
+
+        {isEditing && (
+          <Button
+            variant="ghost"
+            onClick={() => setDeleteConfirmOpen(true)}
+            disabled={saving || imageProcessing || deleting}
+            className="text-danger hover:bg-danger/10"
+          >
+            <Trash2 size={16} />
+            Xoá danh mục
+          </Button>
+        )}
       </div>
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        title="Xoá danh mục này?"
+        description={`"${editingCategory?.name ?? ""}" sẽ bị xoá. Các giao dịch đang dùng danh mục này sẽ được giữ nguyên và chuyển thành chưa phân loại.`}
+        confirmLabel={deleting ? "Đang xoá…" : "Xoá danh mục"}
+        cancelLabel="Huỷ"
+        danger
+        onCancel={() => {
+          if (!deleting) setDeleteConfirmOpen(false);
+        }}
+        onConfirm={handleDelete}
+      />
     </Sheet>
   );
 }

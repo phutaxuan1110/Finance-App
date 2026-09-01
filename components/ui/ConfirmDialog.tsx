@@ -30,7 +30,9 @@ export function ConfirmDialog({
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center px-6">
+        // z-[80]: must stay above a "nested" Sheet (z-[70], e.g. CategoryFormDialog),
+        // since this can be opened as a confirmation from within one of those.
+        <div className="fixed inset-0 z-[80] flex items-center justify-center px-6">
           <motion.div
             className="absolute inset-0 bg-black/70"
             initial={{ opacity: 0 }}
