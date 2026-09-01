@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { DataProvider } from "@/lib/data-context";
 import { ToastProvider } from "@/lib/toast-context";
 import { BottomNav } from "@/components/navigation/BottomNav";
+import { FloatingAddButton } from "@/components/navigation/FloatingAddButton";
 import { Sidebar } from "@/components/navigation/Sidebar";
 import { AddTransactionSheet } from "@/components/transactions/AddTransactionSheet";
 import { InstallHintBanner } from "@/components/pwa/InstallHintBanner";
@@ -32,7 +33,8 @@ function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
-      <BottomNav onAddClick={() => setAddOpen(true)} />
+      <BottomNav />
+      <FloatingAddButton onClick={() => setAddOpen(true)} />
       <AddTransactionSheet open={addOpen} onClose={() => setAddOpen(false)} />
     </div>
   );

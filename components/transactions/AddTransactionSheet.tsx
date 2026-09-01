@@ -5,6 +5,7 @@ import { ArrowDownCircle, ArrowUpCircle, Camera, ChevronDown, Plus, Repeat, X } 
 import { Sheet } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Textarea } from "@/components/ui/Input";
+import { Switch } from "@/components/ui/Switch";
 import { CategoryIcon } from "@/lib/categoryIcons";
 import { cn, formatVNDInput, parseVNDInput, uid } from "@/lib/utils";
 import { useData } from "@/lib/data-context";
@@ -390,28 +391,12 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
 
           {!editingTransaction && (
             <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <Repeat size={18} className="text-text-muted" />
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-3">
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <Repeat size={18} className="text-text-muted shrink-0" />
                   <span className="text-sm">Giao dịch định kỳ</span>
                 </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={isRecurring}
-                  onClick={() => setIsRecurring((v) => !v)}
-                  className={cn(
-                    "relative h-7 w-12 rounded-full transition-colors min-h-[28px]",
-                    isRecurring ? "bg-accent" : "bg-white/15"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "absolute top-1 h-5 w-5 rounded-full bg-white transition-transform",
-                      isRecurring ? "translate-x-6" : "translate-x-1"
-                    )}
-                  />
-                </button>
+                <Switch checked={isRecurring} onChange={setIsRecurring} aria-label="Giao dịch định kỳ" />
               </div>
 
               {isRecurring && (

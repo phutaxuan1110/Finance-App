@@ -114,8 +114,6 @@ export default function DashboardPage() {
 
       <SummaryTiles income={income} expense={expense} />
 
-      <BudgetCard status={status} mascot={mascot} onEditLimit={() => setBudgetSheetOpen(true)} />
-
       <Card>
         <p className="text-base font-semibold mb-3">Lịch chi tiêu</p>
         <MonthCalendar
@@ -126,6 +124,8 @@ export default function DashboardPage() {
           onSelectDay={setSelectedDay}
         />
       </Card>
+
+      <BudgetCard status={status} mascot={mascot} onEditLimit={() => setBudgetSheetOpen(true)} />
 
       <div className="glass-card p-5">
         <div className="flex items-center justify-between mb-2">

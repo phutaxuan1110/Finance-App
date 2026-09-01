@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Sheet } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Select } from "@/components/ui/Input";
+import { Switch } from "@/components/ui/Switch";
 import { useData } from "@/lib/data-context";
 import { useToast } from "@/lib/toast-context";
 import { cn, formatVNDInput, parseVNDInput, uid } from "@/lib/utils";
@@ -172,31 +173,19 @@ export function AccountFormSheet({
           </div>
         </div>
 
-        <div className="flex items-center justify-between rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-3">
-          <div>
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-3">
+          <div className="min-w-0 flex-1">
             <span className="text-sm">Đặt làm tài khoản chính</span>
             {isFirstAccount && (
               <p className="text-[11px] text-text-muted mt-0.5">Tài khoản đầu tiên sẽ tự động là tài khoản chính.</p>
             )}
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={isFirstAccount ? true : isPrimary}
+          <Switch
+            checked={isFirstAccount || isPrimary}
+            onChange={setIsPrimary}
             disabled={isFirstAccount}
-            onClick={() => setIsPrimary((v) => !v)}
-            className={cn(
-              "relative h-7 w-12 rounded-full transition-colors disabled:opacity-70",
-              isFirstAccount || isPrimary ? "bg-accent" : "bg-white/15"
-            )}
-          >
-            <span
-              className={cn(
-                "absolute top-1 h-5 w-5 rounded-full bg-white transition-transform",
-                isFirstAccount || isPrimary ? "translate-x-6" : "translate-x-1"
-              )}
-            />
-          </button>
+            aria-label="Đặt làm tài khoản chính"
+          />
         </div>
 
         <Button onClick={handleSubmit} disabled={saving}>

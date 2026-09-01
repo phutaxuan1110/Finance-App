@@ -23,6 +23,13 @@
   --danger: #e87878;
 
   --font-sans: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Bottom navigation geometry, shared between BottomNav and
+     FloatingAddButton so the FAB always sits a fixed gap above the nav
+     regardless of safe-area inset (notch/Home Indicator height varies by
+     device, so this must never be hard-coded per iPhone model). */
+  --bottom-nav-height: 56px;
+  --bottom-nav-gap: 8px;
 }
 
 @theme inline {
@@ -107,10 +114,14 @@ html {
 
 /* Main content padding that combines a fixed base offset with the device
    safe-area inset, so pt-6/pb-28 utility classes never silently collide
-   with safe-top/safe-bottom utility classes of the same CSS property. */
+   with safe-top/safe-bottom utility classes of the same CSS property.
+   The bottom offset clears both the bottom nav AND the floating add
+   button that now sits above it. */
 .main-content-padding {
   padding-top: calc(env(safe-area-inset-top) + 1.5rem);
-  padding-bottom: calc(env(safe-area-inset-bottom) + 7rem);
+  padding-bottom: calc(
+    env(safe-area-inset-bottom) + var(--bottom-nav-height) + var(--bottom-nav-gap) + 96px
+  );
 }
 @media (min-width: 768px) {
   .main-content-padding {
