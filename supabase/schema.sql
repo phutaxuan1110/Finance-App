@@ -44,7 +44,7 @@ create table if not exists public.categories (
   color text not null,
   type text not null check (type in ('income', 'expense')),
   is_default boolean not null default false,
-  image_data_url text
+  image_data_url text null
 );
 create index if not exists categories_user_id_idx on public.categories(user_id);
 
