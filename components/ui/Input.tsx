@@ -6,7 +6,14 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
     <input
       ref={ref}
       className={cn(
-        "h-12 w-full rounded-2xl bg-white/[0.06] border border-white/[0.08] px-4 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent-soft",
+        // min-w-0 overrides the browser default of `min-width: auto` on
+        // form controls, which for native pickers (date, datetime-local)
+        // is based on their own rendered content — e.g. a long localized
+        // "01:05 ngày 2 thg 9, 2026" string can otherwise force the input
+        // (and the flex column item wrapping it) wider than `width: 100%`
+        // would suggest, making that one field visibly wider than its
+        // siblings and, in a flex layout, overflow past the container.
+        "h-12 w-full min-w-0 rounded-2xl bg-white/[0.06] border border-white/[0.08] px-4 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent-soft",
         className
       )}
       {...props}
@@ -20,7 +27,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTML
     <textarea
       ref={ref}
       className={cn(
-        "w-full rounded-2xl bg-white/[0.06] border border-white/[0.08] px-4 py-3 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent-soft resize-none",
+        "w-full min-w-0 rounded-2xl bg-white/[0.06] border border-white/[0.08] px-4 py-3 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent-soft resize-none",
         className
       )}
       {...props}
@@ -38,7 +45,7 @@ export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttrib
     <select
       ref={ref}
       className={cn(
-        "h-12 w-full rounded-2xl bg-white/[0.06] border border-white/[0.08] px-4 text-sm text-text-primary outline-none transition-colors focus:border-accent-soft appearance-none",
+        "h-12 w-full min-w-0 rounded-2xl bg-white/[0.06] border border-white/[0.08] px-4 text-sm text-text-primary outline-none transition-colors focus:border-accent-soft appearance-none",
         className
       )}
       {...props}

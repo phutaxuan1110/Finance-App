@@ -93,6 +93,21 @@ export class LocalStorageRepository implements DataRepository {
     return transaction;
   }
 
+  async upsertTransactionsBatch(transactions: Transaction[]): Promise<Transaction[]> {
+    if (transactions.length === 0) return [];
+    // One read + one write for the whole batch, instead of one pair per
+    // transaction — both faster and avoids leaving a half-written batch in
+    // storage if something in the middle of a loop elsewhere were to fail.
+    const data = readData();
+    for (const transaction of transactions) {
+      const idx = data.transactions.findIndex((t) => t.id === transaction.id);
+      if (idx >= 0) data.transactions[idx] = transaction;
+      else data.transactions.push(transaction);
+    }
+    writeData(data);
+    return transactions;
+  }
+
   async deleteTransaction(id: string): Promise<void> {
     const data = readData();
     data.transactions = data.transactions.filter((t) => t.id !== id);

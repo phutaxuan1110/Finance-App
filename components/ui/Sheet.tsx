@@ -76,7 +76,7 @@ export function Sheet({ open, onClose, title, children, className, layer = "base
                 <X size={20} />
               </Button>
             </div>
-            <div className="flex-1 overflow-y-auto p-5">{children}</div>
+            <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden p-5">{children}</div>
             {footer && (
               <div
                 className="shrink-0 border-t border-white/[0.06] bg-bg-elevated/95 backdrop-blur px-5 pt-3"

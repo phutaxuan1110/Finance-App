@@ -225,9 +225,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       for (const acc of accounts) {
         await repository.upsertAccount(acc);
       }
-      for (const transaction of transactions) {
-        await repository.upsertTransaction(transaction);
-      }
+      // One batch upsert instead of N sequential upsertTransaction() calls —
+      // see upsertTransactionsBatch's docs for why this matters for a
+      // multi-day recurring series.
+      await repository.upsertTransactionsBatch(transactions);
       const last = transactions[transactions.length - 1];
       await repository.setMeta({
         lastRecentAccountId: last.accountId,

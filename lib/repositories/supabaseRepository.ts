@@ -374,6 +374,18 @@ export class SupabaseRepository implements DataRepository {
     return transaction;
   }
 
+  async upsertTransactionsBatch(transactions: Transaction[]): Promise<Transaction[]> {
+    if (transactions.length === 0) return [];
+    const db = assertClient();
+    // A single upsert call with an array of rows is one PostgREST request
+    // translating to one Postgres statement — Postgres either applies every
+    // row or none of them, unlike N sequential upsertTransaction() calls
+    // which could leave a partially-created series behind if one fails.
+    const { error } = await db.from("transactions").upsert(transactions.map((t) => transactionToRow(t, this.userId)));
+    if (error) throw dbError(error);
+    return transactions;
+  }
+
   async deleteTransaction(id: string): Promise<void> {
     const db = assertClient();
     const { error } = await db.from("transactions").delete().eq("id", id);

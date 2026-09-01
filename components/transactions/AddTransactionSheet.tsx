@@ -1,18 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { format } from "date-fns";
 import { ArrowDownCircle, ArrowUpCircle, Camera, ChevronDown, Plus, Repeat, X } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Textarea } from "@/components/ui/Input";
 import { Switch } from "@/components/ui/Switch";
 import { CategoryVisual } from "@/components/finance/CategoryVisual";
-import { cn, formatVNDInput, parseVNDInput, uid } from "@/lib/utils";
+import { cn, formatVNDInput, getErrorMessage, parseVNDInput, uid } from "@/lib/utils";
 import { useData } from "@/lib/data-context";
 import { useToast } from "@/lib/toast-context";
-import type { RecurrenceFrequency, Transaction, TransactionType } from "@/types";
-import { buildRecurringSeries, type RecurrenceInput } from "@/lib/recurrence";
-import { RecurrencePicker } from "./RecurrencePicker";
+import type { Transaction, TransactionType } from "@/types";
+import { buildDateRangeSeries, computeDateRangeDays, countDateRangeDays, MAX_DATE_RANGE_DAYS } from "@/lib/recurrence";
 import { CategoryFormDialog } from "@/components/finance/CategoryFormDialog";
 import { AccountPickerSheet } from "@/components/accounts/AccountPickerSheet";
 import { AccountFormSheet } from "@/components/accounts/AccountFormSheet";
@@ -44,6 +44,21 @@ function nowLocalInputValue(date?: string) {
   return toLocalInputValue(date ? new Date(date) : new Date());
 }
 
+/** "YYYY-MM-DD" for a Date, for use as an `<input type="date">` value. */
+function toDateOnlyInputValue(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** Parses a "YYYY-MM-DD" `<input type="date">` value as a LOCAL calendar
+ * date at midnight — never via `new Date(str)` alone / `toISOString()`,
+ * which would risk a UTC/timezone shift landing on the wrong day. */
+function parseDateOnlyInputValue(value: string): Date | null {
+  if (!value) return null;
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 export function AddTransactionSheet({ open, onClose, editingTransaction, editScope = "only", prefillDate }: AddTransactionSheetProps) {
   const { data, saveTransaction, addTransactionsBatch, replaceTransactionsBatch } = useData();
   const { showToast } = useToast();
@@ -61,11 +76,11 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
-  // Recurrence config (only relevant when creating a brand-new recurring transaction)
-  const [frequency, setFrequency] = useState<RecurrenceFrequency>("monthly");
-  const [endMode, setEndMode] = useState<"count" | "date">("count");
-  const [count, setCount] = useState(12);
-  const [endDateStr, setEndDateStr] = useState("");
+  // Recurrence config (only relevant when creating a brand-new recurring
+  // transaction): a plain inclusive calendar-day range, not a
+  // frequency/count-based rule — see lib/recurrence.ts for why.
+  const [rangeStartStr, setRangeStartStr] = useState("");
+  const [rangeEndStr, setRangeEndStr] = useState("");
 
   // Inline category / account creation
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
@@ -87,9 +102,20 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
   const amountValue = parseVNDInput(amountDisplay);
   const accountMissing = !accountId;
   const categoryMissing = !categoryId;
-  const recurrenceEndDateMissing = !editingTransaction && isRecurring && endMode === "date" && !endDateStr;
+
+  const isNewRecurring = !editingTransaction && isRecurring;
+  const rangeStart = parseDateOnlyInputValue(rangeStartStr);
+  const rangeEnd = parseDateOnlyInputValue(rangeEndStr);
+  const rangeMissing = isNewRecurring && (!rangeStart || !rangeEnd);
+  const rangeReversed = isNewRecurring && !!rangeStart && !!rangeEnd && rangeEnd.getTime() < rangeStart.getTime();
+  // Same-day range (rangeStart === rangeEnd) is valid and yields exactly 1
+  // occurrence — only a genuinely reversed range is an error.
+  const rangeDayCount = isNewRecurring ? countDateRangeDays(rangeStart, rangeEnd) : 0;
+  const rangeTooLong = isNewRecurring && rangeDayCount > MAX_DATE_RANGE_DAYS;
+  const recurringRangeInvalid = rangeMissing || rangeReversed || rangeTooLong;
+
   const canSave =
-    amountValue > 0 && !accountMissing && !categoryMissing && Boolean(dateValue) && !recurrenceEndDateMissing;
+    amountValue > 0 && !accountMissing && !categoryMissing && Boolean(dateValue) && !recurringRangeInvalid;
 
   useEffect(() => {
     if (!open) return;
@@ -115,6 +141,7 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
       setIsRecurring(editingTransaction.isRecurring);
       setReceiptPreview(editingTransaction.receiptUrl);
     } else {
+      const initialDate = prefillDate ?? new Date();
       setStep("type");
       setType("expense");
       setAmountDisplay("");
@@ -122,13 +149,15 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
       setCategoryId(data?.meta.lastRecentCategoryId || "");
       setMerchant("");
       setNote("");
-      setDateValue(prefillDate ? toLocalInputValue(prefillDate) : nowLocalInputValue());
+      setDateValue(toLocalInputValue(initialDate));
       setIsRecurring(false);
       setReceiptPreview(undefined);
-      setFrequency("monthly");
-      setEndMode("count");
-      setCount(12);
-      setEndDateStr("");
+      // Default both ends of the range to the same day as the transaction
+      // date, so simply flipping the switch on (without touching anything
+      // else) starts from a valid, non-error state — a single-day series.
+      const initialRangeStr = toDateOnlyInputValue(initialDate);
+      setRangeStartStr(initialRangeStr);
+      setRangeEndStr(initialRangeStr);
     }
     setErrors({});
     setSaving(false);
@@ -171,7 +200,11 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
     if (!accountId) newErrors.accountId = "Vui lòng chọn tài khoản hoặc ví.";
     if (!categoryId) newErrors.categoryId = "Vui lòng chọn danh mục.";
     if (!dateValue) newErrors.dateValue = "Vui lòng chọn ngày giờ.";
-    if (isRecurring && endMode === "date" && !endDateStr) newErrors.recurrence = "Vui lòng chọn ngày kết thúc.";
+    if (isNewRecurring) {
+      if (rangeMissing) newErrors.recurrence = "Vui lòng chọn từ ngày và đến ngày.";
+      else if (rangeReversed) newErrors.recurrence = "Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.";
+      else if (rangeTooLong) newErrors.recurrence = `Khoảng ngày quá dài (tối đa ${MAX_DATE_RANGE_DAYS} ngày).`;
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -213,22 +246,25 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
         return;
       }
 
-      // --- Creating a brand-new recurring series ---
-      if (!editingTransaction && isRecurring) {
-        const startDate = new Date(dateValue);
-        const input: RecurrenceInput = {
-          frequency,
-          startDate,
-          endMode,
-          count: endMode === "count" ? count : undefined,
-          endDate: endMode === "date" && endDateStr ? new Date(`${endDateStr}T23:59:59`) : undefined,
-        };
-        const series = buildRecurringSeries(
+      // --- Creating a brand-new recurring series: one transaction per
+      // calendar day in [rangeStart, rangeEnd], inclusive. Generated and
+      // inserted immediately (as one batch) — never a stored "rule" waiting
+      // on some future job to expand it. ---
+      if (isNewRecurring && rangeStart && rangeEnd) {
+        const timeOfDay = new Date(dateValue);
+        const series = buildDateRangeSeries(
           { type, amount, accountId, categoryId, merchant: merchant || undefined, note: note || undefined },
-          input
+          rangeStart,
+          rangeEnd,
+          timeOfDay
         );
+        if (series.length === 0) {
+          // canSave already guards against this, but never trust that alone.
+          showToast("Khoảng ngày không hợp lệ.", "error");
+          return;
+        }
         await addTransactionsBatch(series);
-        showToast(`Đã tạo ${series.length} giao dịch định kỳ.`);
+        showToast(`Đã tạo ${series.length} giao dịch.`);
         onClose();
         return;
       }
@@ -260,6 +296,11 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
       await saveTransaction(transaction, editingTransaction ?? undefined);
       showToast(editingTransaction ? "Đã cập nhật giao dịch." : "Đã lưu giao dịch.");
       onClose();
+    } catch (err) {
+      // A multi-day batch can fail partway through the underlying store;
+      // never let the dialog look like it succeeded when it didn't. Data
+      // already entered stays intact so the user can just hit Lưu again.
+      showToast(getErrorMessage(err, "Không thể lưu giao dịch. Vui lòng thử lại."), "error");
     } finally {
       setSaving(false);
     }
@@ -431,17 +472,59 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
               </div>
 
               {isRecurring && (
-                <RecurrencePicker
-                  startDate={new Date(dateValue)}
-                  frequency={frequency}
-                  onFrequencyChange={setFrequency}
-                  endMode={endMode}
-                  onEndModeChange={setEndMode}
-                  count={count}
-                  onCountChange={setCount}
-                  endDate={endDateStr}
-                  onEndDateChange={setEndDateStr}
-                />
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <Label htmlFor="rangeStart">Từ ngày</Label>
+                    <Input
+                      id="rangeStart"
+                      type="date"
+                      value={rangeStartStr}
+                      onChange={(e) => setRangeStartStr(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="rangeEnd">Đến ngày</Label>
+                    <Input
+                      id="rangeEnd"
+                      type="date"
+                      value={rangeEndStr}
+                      min={rangeStartStr || undefined}
+                      onChange={(e) => setRangeEndStr(e.target.value)}
+                    />
+                  </div>
+
+                  {rangeReversed && (
+                    <p className="text-xs text-danger -mt-2">Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.</p>
+                  )}
+                  {!rangeReversed && rangeTooLong && (
+                    <p className="text-xs text-danger -mt-2">
+                      Khoảng ngày quá dài (tối đa {MAX_DATE_RANGE_DAYS} ngày).
+                    </p>
+                  )}
+
+                  {!rangeReversed && !rangeTooLong && rangeDayCount > 0 && (
+                    <div>
+                      <p className="text-xs text-text-muted mb-2">
+                        Sẽ tạo <span className="text-text-primary font-medium">{rangeDayCount}</span> giao dịch
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                        {computeDateRangeDays(rangeStart!, rangeEnd!)
+                          .slice(0, 12)
+                          .map((d, i) => (
+                            <span key={i} className="text-[11px] rounded-full bg-white/[0.06] px-2.5 py-1 tabular-nums">
+                              {format(d, "dd/MM/yyyy")}
+                            </span>
+                          ))}
+                        {rangeDayCount > 12 && (
+                          <span className="text-[11px] rounded-full bg-white/[0.06] px-2.5 py-1">
+                            +{rangeDayCount - 12} ngày khác
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
               {errors.recurrence && <p className="text-xs text-danger">{errors.recurrence}</p>}
             </div>

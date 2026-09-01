@@ -24,6 +24,16 @@ export interface DataRepository {
   // Transactions
   listTransactions(): Promise<Transaction[]>;
   upsertTransaction(transaction: Transaction): Promise<Transaction>;
+  /**
+   * Upserts many transactions in as close to one atomic operation as the
+   * backing store supports — a single upsert statement for Supabase (so
+   * Postgres either applies the whole batch or none of it), a single
+   * read-modify-write for localStorage — instead of N sequential
+   * `upsertTransaction` calls that could leave a partially-applied batch
+   * behind if one call fails partway through (e.g. a multi-day recurring
+   * series).
+   */
+  upsertTransactionsBatch(transactions: Transaction[]): Promise<Transaction[]>;
   deleteTransaction(id: string): Promise<void>;
 
   // Categories
