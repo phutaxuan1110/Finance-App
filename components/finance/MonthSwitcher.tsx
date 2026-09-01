@@ -24,7 +24,7 @@ export function MonthSwitcher({ month, year, onChange }: MonthSwitcherProps) {
   }
 
   return (
-    <div className="flex items-center gap-1 rounded-full bg-white/[0.06] border border-white/[0.08] px-1.5 py-1">
+    <div className="flex items-center gap-1 rounded-full bg-white/[0.06] border border-white/[0.08] px-1.5 py-1 w-fit">
       <button
         onClick={() => shift(-1)}
         aria-label="Tháng trước"
