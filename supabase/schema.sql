@@ -43,7 +43,8 @@ create table if not exists public.categories (
   icon text not null,
   color text not null,
   type text not null check (type in ('income', 'expense')),
-  is_default boolean not null default false
+  is_default boolean not null default false,
+  image_data_url text
 );
 create index if not exists categories_user_id_idx on public.categories(user_id);
 
@@ -112,8 +113,7 @@ create table if not exists public.user_settings (
 
 -- ---------------------------------------------------------------------
 -- Row Level Security: a user may only ever touch their own rows
--- ---------------------------------------------------------------------
-alter table public.accounts enable row level security;
+-- ---------------------------------------------------------------------alter table public.accounts enable row level security;
 alter table public.categories enable row level security;
 alter table public.transactions enable row level security;
 alter table public.budgets enable row level security;

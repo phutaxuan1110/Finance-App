@@ -7,6 +7,7 @@ import type {
   UserSettings,
 } from "@/types";
 import { buildDemoData } from "@/lib/seed";
+import { ensureCategoryTypes } from "@/lib/categoryMigration";
 import { supabase } from "@/lib/supabase/client";
 import type { DataRepository } from "./types";
 
@@ -60,6 +61,7 @@ type CategoryRow = {
   color: string;
   type: Category["type"];
   is_default: boolean;
+  image_data_url: string | null;
 };
 
 type BudgetRow = {
@@ -175,10 +177,19 @@ function categoryToRow(c: Category, userId: string) {
     color: c.color,
     type: c.type,
     is_default: c.isDefault,
+    image_data_url: c.imageDataUrl ?? null,
   };
 }
 function rowToCategory(r: CategoryRow): Category {
-  return { id: r.id, name: r.name, icon: r.icon, color: r.color, type: r.type, isDefault: r.is_default };
+  return {
+    id: r.id,
+    name: r.name,
+    icon: r.icon,
+    color: r.color,
+    type: r.type,
+    isDefault: r.is_default,
+    imageDataUrl: r.image_data_url ?? undefined,
+  };
 }
 
 function budgetToRow(b: MonthlyBudget, userId: string) {
@@ -309,7 +320,24 @@ export class SupabaseRepository implements DataRepository {
     const db = assertClient();
     const { data, error } = await db.from("categories").select("*");
     if (error) throw error;
-    return (data as CategoryRow[]).map(rowToCategory);
+    const categories = (data as CategoryRow[]).map(rowToCategory);
+
+    // Defensive migration for any category missing a valid type (see
+    // lib/categoryMigration.ts) — a no-op for every category this app has
+    // ever created itself, but protects hand-edited/imported data.
+    const { data: txData } = await db.from("transactions").select("category_id, type");
+    const migrated = ensureCategoryTypes(
+      categories,
+      (txData ?? []).map((t: { category_id: string | null; type: Transaction["type"] }) => ({
+        categoryId: t.category_id ?? undefined,
+        type: t.type,
+      }))
+    );
+    const changed = migrated.filter((c, i) => c !== categories[i]);
+    if (changed.length > 0) {
+      await db.from("categories").upsert(changed.map((c) => categoryToRow(c, this.userId)));
+    }
+    return migrated;
   }
 
   async upsertCategory(category: Category): Promise<Category> {

@@ -6,7 +6,7 @@ import { useData } from "@/lib/data-context";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { CategoryDonutChart } from "@/components/charts/CategoryDonutChart";
 import { IncomeExpenseBarChart, type ComparisonPoint } from "@/components/charts/IncomeExpenseBarChart";
-import { CategoryIcon } from "@/lib/categoryIcons";
+import { CategoryVisual } from "@/components/finance/CategoryVisual";
 import { cn, formatVND } from "@/lib/utils";
 import { categoryBreakdown, generateInsightsForPeriod, sumByType } from "@/lib/calculations";
 import {
@@ -184,10 +184,10 @@ export default function AnalysisPage() {
                 {breakdown.map((item) => (
                   <div key={item.category.id} className="flex items-center gap-3">
                     <div
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-                      style={{ backgroundColor: `${item.category.color}22`, color: item.category.color }}
+                      className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full"
+                      style={{ backgroundColor: item.category.imageDataUrl ? undefined : `${item.category.color}22`, color: item.category.color }}
                     >
-                      <CategoryIcon name={item.category.icon} size={16} />
+                      <CategoryVisual category={item.category} size={16} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">

@@ -61,10 +61,12 @@ export type CategoryKind = "income" | "expense";
 export interface Category {
   id: string;
   name: string;
-  icon: string; // lucide icon name
+  icon: string; // lucide icon name, used as fallback when no image is set
   color: string;
   type: CategoryKind;
   isDefault: boolean;
+  /** Optional compressed square thumbnail (data URL). When present, shown instead of `icon`. */
+  imageDataUrl?: string;
 }
 
 export interface CategoryLimit {

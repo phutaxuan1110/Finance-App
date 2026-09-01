@@ -24,10 +24,10 @@ function AppShell({ children }: { children: React.ReactNode }) {
   const [addOpen, setAddOpen] = useState(false);
 
   return (
-    <div className="min-h-dvh flex safe-left safe-right">
+    <div className="min-h-dvh w-full flex">
       <Sidebar onAddClick={() => setAddOpen(true)} />
       <div className="flex-1 min-w-0">
-        <main className="mx-auto w-full max-w-3xl px-4 md:px-8 main-content-padding">
+        <main className="mx-auto w-full max-w-3xl main-content-padding">
           <InstallHintBanner />
           <MigrationBanner />
           {children}

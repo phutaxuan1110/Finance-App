@@ -3,7 +3,7 @@
 import { ArrowLeftRight, MoreVertical, Trash2, Pencil } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
-import { CategoryIcon } from "@/lib/categoryIcons";
+import { CategoryVisual } from "@/components/finance/CategoryVisual";
 import { cn, formatSignedVND } from "@/lib/utils";
 import type { Account, Category, Transaction } from "@/types";
 
@@ -29,13 +29,13 @@ export function TransactionRow({
   return (
     <div className="flex items-center gap-3 py-3 px-1 group relative">
       <div
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
-        style={{ backgroundColor: `${category?.color ?? "#A49DA0"}22`, color: category?.color ?? "#A49DA0" }}
+        className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full"
+        style={{ backgroundColor: category?.imageDataUrl ? undefined : `${category?.color ?? "#A49DA0"}22`, color: category?.color ?? "#A49DA0" }}
       >
         {transaction.type === "transfer" ? (
           <ArrowLeftRight size={19} />
         ) : (
-          <CategoryIcon name={category?.icon ?? "MoreHorizontal"} size={19} />
+          <CategoryVisual category={category ?? { icon: "MoreHorizontal" }} size={19} />
         )}
       </div>
 

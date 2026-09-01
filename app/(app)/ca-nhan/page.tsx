@@ -13,6 +13,8 @@ import {
   Cloud,
   CloudOff,
   LogOut,
+  Pencil,
+  Plus,
 } from "lucide-react";
 import { useData } from "@/lib/data-context";
 import { useAuth } from "@/lib/auth-context";
@@ -22,10 +24,11 @@ import { Button } from "@/components/ui/Button";
 import { Input, Label, Select } from "@/components/ui/Input";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { SnakeMascot } from "@/components/mascot/SnakeMascot";
-import { CategoryIcon } from "@/lib/categoryIcons";
+import { CategoryVisual } from "@/components/finance/CategoryVisual";
+import { CategoryFormDialog } from "@/components/finance/CategoryFormDialog";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
 import { formatVNDInput, parseVNDInput } from "@/lib/utils";
-import type { UserSettings } from "@/types";
+import type { Category, CategoryKind, UserSettings } from "@/types";
 
 export default function SettingsPage() {
   const { data, loading, isCloudSynced, saveSettings, resetDemoData, wipeAllData, exportJSON, importJSON } = useData();
@@ -42,6 +45,9 @@ export default function SettingsPage() {
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [wipeConfirmOpen, setWipeConfirmOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [categoryDialogKind, setCategoryDialogKind] = useState<CategoryKind>("expense");
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -130,6 +136,21 @@ export default function SettingsPage() {
     await signOut();
     router.replace("/dang-nhap");
   }
+
+  function openAddCategory(k: CategoryKind) {
+    setEditingCategory(null);
+    setCategoryDialogKind(k);
+    setCategoryDialogOpen(true);
+  }
+
+  function openEditCategory(c: Category) {
+    setEditingCategory(c);
+    setCategoryDialogKind(c.type);
+    setCategoryDialogOpen(true);
+  }
+
+  const expenseCategories = data.categories.filter((c) => c.type === "expense");
+  const incomeCategories = data.categories.filter((c) => c.type === "income");
 
   return (
     <div className="flex flex-col gap-5">
@@ -242,21 +263,19 @@ export default function SettingsPage() {
           <ChevronRight size={16} className={`text-text-muted transition-transform ${categoriesOpen ? "rotate-90" : ""}`} />
         </button>
         {categoriesOpen && (
-          <div className="grid grid-cols-2 gap-2 mt-4">
-            {data.categories.map((c) => (
-              <div key={c.id} className="flex items-center gap-2 rounded-2xl bg-white/[0.03] px-3 py-2.5">
-                <div
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                  style={{ backgroundColor: `${c.color}22`, color: c.color }}
-                >
-                  <CategoryIcon name={c.icon} size={15} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-medium truncate">{c.name}</p>
-                  <p className="text-[10px] text-text-muted">{c.type === "income" ? "Thu nhập" : "Chi tiêu"}</p>
-                </div>
-              </div>
-            ))}
+          <div className="flex flex-col gap-5 mt-4">
+            <CategoryGroup
+              title="Danh mục chi"
+              categories={expenseCategories}
+              onAdd={() => openAddCategory("expense")}
+              onEdit={openEditCategory}
+            />
+            <CategoryGroup
+              title="Danh mục thu"
+              categories={incomeCategories}
+              onAdd={() => openAddCategory("income")}
+              onEdit={openEditCategory}
+            />
           </div>
         )}
       </Card>
@@ -331,6 +350,64 @@ export default function SettingsPage() {
           setWipeConfirmOpen(false);
         }}
       />
+
+      <CategoryFormDialog
+        open={categoryDialogOpen}
+        onClose={() => setCategoryDialogOpen(false)}
+        kind={categoryDialogKind}
+        editingCategory={editingCategory}
+      />
+    </div>
+  );
+}
+
+function CategoryGroup({
+  title,
+  categories,
+  onAdd,
+  onEdit,
+}: {
+  title: string;
+  categories: Category[];
+  onAdd: () => void;
+  onEdit: (c: Category) => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-medium text-text-muted">{title}</p>
+        <button
+          onClick={onAdd}
+          className="flex items-center gap-1 text-xs font-medium text-accent-soft hover:underline"
+        >
+          <Plus size={13} /> Thêm
+        </button>
+      </div>
+      {categories.length === 0 ? (
+        <p className="text-xs text-text-muted">Chưa có danh mục nào.</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          {categories.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => onEdit(c)}
+              aria-label={`Sửa danh mục ${c.name}`}
+              className="flex items-center gap-2 rounded-2xl bg-white/[0.03] px-3 py-2.5 text-left hover:bg-white/[0.06] transition-colors min-h-[44px]"
+            >
+              <div
+                className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full"
+                style={{ backgroundColor: c.imageDataUrl ? undefined : `${c.color}22`, color: c.color }}
+              >
+                <CategoryVisual category={c} size={15} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium truncate">{c.name}</p>
+              </div>
+              <Pencil size={13} className="text-text-muted shrink-0" />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

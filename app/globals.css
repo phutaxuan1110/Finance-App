@@ -28,7 +28,7 @@
      FloatingAddButton so the FAB always sits a fixed gap above the nav
      regardless of safe-area inset (notch/Home Indicator height varies by
      device, so this must never be hard-coded per iPhone model). */
-  --bottom-nav-height: 56px;
+  --bottom-nav-height: 64px;
   --bottom-nav-gap: 8px;
 }
 
@@ -55,6 +55,21 @@
 
 html {
   color-scheme: dark;
+}
+
+/* Guarantee the app can never be inset from the viewport edges by an
+   inherited margin/max-width from somewhere up the tree. Safe-area insets
+   are applied as padding on specific containers further down (see
+   .main-content-padding, .safe-*), never as a margin or width reduction
+   here — shrinking width by env(safe-area-inset-left) would leave a
+   visible gap of background missing from one edge, which is the bug this
+   guards against. */
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 body {
@@ -116,17 +131,48 @@ html {
    safe-area inset, so pt-6/pb-28 utility classes never silently collide
    with safe-top/safe-bottom utility classes of the same CSS property.
    The bottom offset clears both the bottom nav AND the floating add
-   button that now sits above it. */
+   button that now sits above it.
+   Left/right safe-area is folded in here too (instead of on the outer
+   app-shell wrapper) so the app-shell itself stays full-width edge-to-edge
+   and only the actual readable content is inset for notches — the
+   "correct" pattern of applying safe-area as content padding, not as a
+   width/margin reduction on the shell. */
 .main-content-padding {
   padding-top: calc(env(safe-area-inset-top) + 1.5rem);
   padding-bottom: calc(
     env(safe-area-inset-bottom) + var(--bottom-nav-height) + var(--bottom-nav-gap) + 96px
   );
+  padding-left: calc(env(safe-area-inset-left) + 1rem);
+  padding-right: calc(env(safe-area-inset-right) + 1rem);
 }
 @media (min-width: 768px) {
   .main-content-padding {
     padding-bottom: calc(env(safe-area-inset-bottom) + 4rem);
+    padding-left: calc(env(safe-area-inset-left) + 2rem);
+    padding-right: calc(env(safe-area-inset-right) + 2rem);
   }
+}
+
+/* Force native date/time inputs (esp. iOS Safari) to fill their input's
+   full width rather than hugging their intrinsic content width, so these
+   fields visually match the width of sibling text/select fields instead
+   of looking narrower/misaligned. */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+input[type="date"]::-webkit-datetime-edit,
+input[type="time"]::-webkit-datetime-edit,
+input[type="datetime-local"]::-webkit-datetime-edit {
+  width: 100%;
+}
+input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+input[type="time"]::-webkit-datetime-edit-fields-wrapper,
+input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper {
+  width: 100%;
+  display: flex;
 }
 
 ::selection {

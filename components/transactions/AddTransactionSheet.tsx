@@ -6,7 +6,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Textarea } from "@/components/ui/Input";
 import { Switch } from "@/components/ui/Switch";
-import { CategoryIcon } from "@/lib/categoryIcons";
+import { CategoryVisual } from "@/components/finance/CategoryVisual";
 import { cn, formatVNDInput, parseVNDInput, uid } from "@/lib/utils";
 import { useData } from "@/lib/data-context";
 import { useToast } from "@/lib/toast-context";
@@ -344,7 +344,9 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
                       : "border-white/[0.08] bg-white/[0.03] text-text-muted hover:bg-white/[0.06]"
                   )}
                 >
-                  <CategoryIcon name={c.icon} />
+                  <span className="relative flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full">
+                    <CategoryVisual category={c} size={18} />
+                  </span>
                   <span className="text-center leading-tight">{c.name}</span>
                 </button>
               ))}
@@ -458,7 +460,7 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
         open={categoryDialogOpen}
         onClose={() => setCategoryDialogOpen(false)}
         kind={type === "income" ? "income" : "expense"}
-        onCreated={handleCategoryCreated}
+        onSaved={handleCategoryCreated}
       />
       <AccountPickerSheet
         open={accountPickerOpen}
