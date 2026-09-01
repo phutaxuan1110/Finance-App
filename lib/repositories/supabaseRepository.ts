@@ -28,6 +28,53 @@ function dbError(error: { message: string; details?: string; hint?: string; code
   return new Error(getErrorMessage(error, parts.filter(Boolean).join(" — ")));
 }
 
+/**
+ * True when a PostgREST "column not found in schema cache" error refers to
+ * `columnName` specifically (code `PGRST204`, e.g. "Could not find the
+ * 'image_data_url' column of 'categories' in the schema cache"). This means
+ * the live Supabase database hasn't actually run the migration that adds
+ * this column yet, even though schema.sql / the app code expects it.
+ */
+function isMissingColumnError(
+  error: { code?: string; message?: string } | null | undefined,
+  columnName: string
+): boolean {
+  if (!error?.message) return false;
+  if (error.code && error.code !== "PGRST204") return false;
+  return error.message.includes(`'${columnName}'`) && error.message.toLowerCase().includes("column");
+}
+
+/**
+ * Upserts category rows, tolerating a live database that is missing the
+ * `image_data_url` column (a pending migration — see
+ * supabase/migrations/002_add_categories_image_data_url.sql). Without this,
+ * every single category save fails with a schema-cache error, even edits
+ * that never touch the image (name/icon/color/type), because the column is
+ * always present — as `null` when unset — in the payload sent to PostgREST.
+ *
+ * On success: resolves normally. If the column turned out to be missing,
+ * everything except the image itself was still saved, and the returned flag
+ * tells the caller so it can warn the user instead of pretending the image
+ * was stored too.
+ */
+async function upsertCategoryRows(
+  db: NonNullable<typeof supabase>,
+  rows: ReturnType<typeof categoryToRow>[]
+): Promise<{ imageColumnMissing: boolean }> {
+  const { error } = await db.from("categories").upsert(rows);
+  if (!error) return { imageColumnMissing: false };
+  if (!isMissingColumnError(error, "image_data_url")) throw dbError(error);
+
+  const rowsWithoutImage = rows.map((row) => {
+    const rest = { ...row };
+    delete (rest as { image_data_url?: unknown }).image_data_url;
+    return rest;
+  });
+  const { error: retryError } = await db.from("categories").upsert(rowsWithoutImage);
+  if (retryError) throw dbError(retryError);
+  return { imageColumnMissing: true };
+}
+
 // ---------------------------------------------------------------------------
 // Row <-> app-type mapping. The DB uses snake_case columns; the app's types
 // use camelCase. Keeping the mapping in one place means the rest of the
@@ -352,15 +399,28 @@ export class SupabaseRepository implements DataRepository {
     );
     const changed = migrated.filter((c, i) => c !== categories[i]);
     if (changed.length > 0) {
-      await db.from("categories").upsert(changed.map((c) => categoryToRow(c, this.userId)));
+      // Best-effort defensive write — never let it block reading categories.
+      try {
+        await upsertCategoryRows(db, changed.map((c) => categoryToRow(c, this.userId)));
+      } catch {
+        // Ignore: this is just a self-healing backfill, not part of the
+        // caller's request.
+      }
     }
     return migrated;
   }
 
   async upsertCategory(category: Category): Promise<Category> {
     const db = assertClient();
-    const { error } = await db.from("categories").upsert(categoryToRow(category, this.userId));
-    if (error) throw dbError(error);
+    const { imageColumnMissing } = await upsertCategoryRows(db, [categoryToRow(category, this.userId)]);
+    if (imageColumnMissing && category.imageDataUrl) {
+      // Name/icon/color/type were saved successfully (see upsertCategoryRows);
+      // only the image itself could not be, so say so explicitly rather than
+      // silently dropping it or blocking the whole save.
+      throw new Error(
+        "Đã lưu tên/biểu tượng/màu của danh mục, nhưng KHÔNG lưu được ảnh vì cơ sở dữ liệu Supabase chưa có cột 'image_data_url' trong bảng categories. Vui lòng chạy migration (supabase/migrations/002_add_categories_image_data_url.sql) rồi thử lưu ảnh lại."
+      );
+    }
     return category;
   }
 
@@ -462,10 +522,7 @@ export class SupabaseRepository implements DataRepository {
     const db = assertClient();
 
     if (parsed.categories?.length) {
-      const { error } = await db
-        .from("categories")
-        .upsert(parsed.categories.map((c) => categoryToRow(c, this.userId)));
-      if (error) throw dbError(error);
+      await upsertCategoryRows(db, parsed.categories.map((c) => categoryToRow(c, this.userId)));
     }
     if (parsed.accounts.length) {
       const { error } = await db.from("accounts").upsert(parsed.accounts.map((a) => accountToRow(a, this.userId)));

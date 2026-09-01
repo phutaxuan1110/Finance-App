@@ -336,8 +336,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const saveCategory = useCallback(
     async (category: Category) => {
-      await repository.upsertCategory(category);
-      await refresh();
+      try {
+        await repository.upsertCategory(category);
+      } finally {
+        // Always resync app state with what's actually in the database,
+        // even when upsertCategory throws — some writes (e.g. the
+        // Supabase "image column missing" case) still save everything
+        // except one field, and the UI shouldn't stay stuck showing the
+        // old data for the parts that DID save just because the whole
+        // call is reported as a failure.
+        await refresh();
+      }
     },
     [repository, refresh]
   );
