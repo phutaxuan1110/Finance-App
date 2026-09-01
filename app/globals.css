@@ -1,0 +1,153 @@
+@import "tailwindcss";
+
+:root {
+  --accent: #b76e79;
+  --accent-hover: #c9828d;
+  --accent-dark: #8f4f5a;
+  --accent-soft: #d9a4ac;
+  --accent-pale: #f3d9de;
+
+  --bg-deep: #09090b;
+  --bg-base: #101014;
+  --bg-elevated: #17171d;
+
+  --card-surface: rgba(255, 255, 255, 0.055);
+  --card-hover: rgba(255, 255, 255, 0.085);
+
+  --text-primary: #f4eff0;
+  --text-muted: #a49da0;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+
+  --success: #77c58a;
+  --warning: #e5b96f;
+  --danger: #e87878;
+
+  --font-sans: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@theme inline {
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-dark: var(--accent-dark);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-pale: var(--accent-pale);
+  --color-bg-deep: var(--bg-deep);
+  --color-bg-base: var(--bg-base);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-text-primary: var(--text-primary);
+  --color-text-muted: var(--text-muted);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-sans);
+}
+
+* {
+  border-color: var(--border-subtle);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh; /* fallback for browsers without dvh support */
+  min-height: 100dvh;
+  overscroll-behavior-y: none;
+}
+
+html {
+  overscroll-behavior-y: none;
+}
+
+.app-shell-bg {
+  background:
+    radial-gradient(700px 420px at 15% -5%, rgba(183, 110, 121, 0.16), transparent 60%),
+    radial-gradient(600px 480px at 100% 15%, rgba(143, 79, 90, 0.12), transparent 55%),
+    var(--bg-deep);
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.glass-card {
+  background: var(--card-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  backdrop-filter: blur(18px);
+  transition: background-color 220ms ease, transform 220ms ease, box-shadow 220ms ease;
+}
+
+.glass-card:hover {
+  background: var(--card-hover);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-left {
+  padding-left: env(safe-area-inset-left);
+}
+
+.safe-right {
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Main content padding that combines a fixed base offset with the device
+   safe-area inset, so pt-6/pb-28 utility classes never silently collide
+   with safe-top/safe-bottom utility classes of the same CSS property. */
+.main-content-padding {
+  padding-top: calc(env(safe-area-inset-top) + 1.5rem);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 7rem);
+}
+@media (min-width: 768px) {
+  .main-content-padding {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 4rem);
+  }
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: #1a0e10;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
