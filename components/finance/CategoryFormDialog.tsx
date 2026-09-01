@@ -81,6 +81,10 @@ export function CategoryFormDialog({ open, onClose, kind, onSaved, editingCatego
   }
 
   async function handleSubmit() {
+    // Guard against double-submit (e.g. a rapid double click landing before
+    // the `disabled` prop below has re-rendered).
+    if (saving) return;
+
     const trimmed = name.trim();
     if (!trimmed) {
       setError("Vui lòng nhập tên danh mục.");
@@ -97,7 +101,6 @@ export function CategoryFormDialog({ open, onClose, kind, onSaved, editingCatego
       return;
     }
 
-    setSaving(true);
     const category: Category = {
       id: editingCategory?.id ?? uid("cat"),
       name: trimmed,
@@ -107,11 +110,28 @@ export function CategoryFormDialog({ open, onClose, kind, onSaved, editingCatego
       isDefault: editingCategory?.isDefault ?? false,
       imageDataUrl,
     };
-    await saveCategory(category);
-    setSaving(false);
-    showToast(isEditing ? "Đã cập nhật danh mục." : "Đã thêm danh mục mới.");
-    onSaved?.(category);
-    onClose();
+
+    setSaving(true);
+    try {
+      await saveCategory(category);
+      // Only clear the error, close the dialog, and notify success once the
+      // write (and the subsequent data refresh) has actually completed —
+      // never optimistically, so the dialog can never "succeed" on a save
+      // that didn't really persist.
+      setError("");
+      showToast(isEditing ? "Đã cập nhật danh mục." : "Đã thêm danh mục mới.");
+      onSaved?.(category);
+      onClose();
+    } catch (err) {
+      // Keep the dialog open and the user's edits intact so they can retry
+      // without re-entering anything.
+      setError(err instanceof Error ? err.message : "Không thể lưu danh mục.");
+      showToast(err instanceof Error ? err.message : "Không thể lưu danh mục. Vui lòng thử lại.", "error");
+    } finally {
+      // Always leave the "Đang lưu…" state, whether the save succeeded or
+      // failed, so the button never gets stuck.
+      setSaving(false);
+    }
   }
 
   return (

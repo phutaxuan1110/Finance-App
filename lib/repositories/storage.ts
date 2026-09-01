@@ -21,9 +21,19 @@ export function storageSet<T>(key: string, value: T): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(NAMESPACE + key, JSON.stringify(value));
-  } catch {
-    // Storage full or unavailable — fail silently, the in-memory state
-    // still works for the current session.
+  } catch (err) {
+    // IMPORTANT: do NOT swallow this. A write failure here (most commonly
+    // `QuotaExceededError` from a large category image, but also private-
+    // browsing storage restrictions) used to be caught and silently
+    // ignored, so callers like `upsertCategory` believed the save had
+    // succeeded when nothing was actually persisted — the in-memory object
+    // looked right until the next reload, when the old data reappeared.
+    // Re-throwing lets repository methods (and ultimately the UI) know the
+    // write genuinely failed, so they can surface an error instead of a
+    // false "success".
+    throw err instanceof Error
+      ? err
+      : new Error("Không thể lưu dữ liệu vào bộ nhớ trên thiết bị (có thể do bộ nhớ đã đầy).");
   }
 }
 
