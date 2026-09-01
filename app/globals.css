@@ -153,26 +153,50 @@ html {
   }
 }
 
-/* Force native date/time inputs (esp. iOS Safari) to fill their input's
-   full width rather than hugging their intrinsic content width, so these
-   fields visually match the width of sibling text/select fields instead
-   of looking narrower/misaligned. */
-input[type="date"],
-input[type="time"],
-input[type="datetime-local"] {
-  width: 100%;
-  box-sizing: border-box;
+/* iOS/WebKit date & datetime-local inputs. `appearance-none` (applied on
+   the <Input> component itself — see components/ui/Input.tsx) is what
+   actually fixes these inputs ignoring `width: 100%` and instead rendering
+   at their own native intrinsic width (a longstanding WebKit bug — without
+   it, "Ngày và giờ"/"Từ ngày"/"Đến ngày" stretch past every other field's
+   right edge). But once native appearance is removed, WebKit's internal
+   date/time segments (`::-webkit-datetime-edit-*-field`) keep a small
+   default top padding that used to be absorbed by the native control's own
+   height calculation — left as-is, that padding pushes the visible value
+   toward the top of the field instead of centering it vertically. This
+   block resets that padding and re-centers the internal flex layout so the
+   value sits centered again, the same way it did before appearance-none.
+*/
+input[type="date"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value {
+  text-align: left;
 }
 input[type="date"]::-webkit-datetime-edit,
-input[type="time"]::-webkit-datetime-edit,
 input[type="datetime-local"]::-webkit-datetime-edit {
+  display: flex;
+  align-items: center;
   width: 100%;
+  padding: 0;
 }
 input[type="date"]::-webkit-datetime-edit-fields-wrapper,
-input[type="time"]::-webkit-datetime-edit-fields-wrapper,
 input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper {
-  width: 100%;
   display: flex;
+  align-items: center;
+  width: 100%;
+}
+input[type="date"]::-webkit-datetime-edit-text,
+input[type="date"]::-webkit-datetime-edit-year-field,
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="datetime-local"]::-webkit-datetime-edit-text,
+input[type="datetime-local"]::-webkit-datetime-edit-year-field,
+input[type="datetime-local"]::-webkit-datetime-edit-month-field,
+input[type="datetime-local"]::-webkit-datetime-edit-day-field,
+input[type="datetime-local"]::-webkit-datetime-edit-hour-field,
+input[type="datetime-local"]::-webkit-datetime-edit-minute-field,
+input[type="datetime-local"]::-webkit-datetime-edit-second-field,
+input[type="datetime-local"]::-webkit-datetime-edit-ampm-field {
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 ::selection {

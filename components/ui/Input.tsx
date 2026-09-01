@@ -17,7 +17,10 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
         // does not disable the native date/time picker itself on iOS —
         // tapping the field still opens it — it only removes the OS's
         // default control chrome so our own width/border/background apply.
-        "block h-12 w-full min-w-0 appearance-none rounded-2xl bg-white/[0.06] border border-white/[0.08] px-4 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent-soft [&::-webkit-date-and-time-value]:text-left",
+        // (The accompanying vertical-centering fix for the WebKit
+        // date/time internals lives in app/globals.css, next to the rest
+        // of the ::-webkit-datetime-edit-* rules it has to coordinate with.)
+        "block h-12 w-full min-w-0 appearance-none rounded-2xl bg-white/[0.06] border border-white/[0.08] px-4 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent-soft",
         className
       )}
       {...props}
