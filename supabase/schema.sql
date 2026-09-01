@@ -113,7 +113,8 @@ create table if not exists public.user_settings (
 
 -- ---------------------------------------------------------------------
 -- Row Level Security: a user may only ever touch their own rows
--- ---------------------------------------------------------------------alter table public.accounts enable row level security;
+-- ---------------------------------------------------------------------
+alter table public.accounts enable row level security;
 alter table public.categories enable row level security;
 alter table public.transactions enable row level security;
 alter table public.budgets enable row level security;
