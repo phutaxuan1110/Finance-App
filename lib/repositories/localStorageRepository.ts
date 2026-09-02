@@ -13,6 +13,10 @@ function emptySettings(): UserSettings {
     financialMonthStartDay: 1,
     theme: "dark",
     defaultMonthlyLimit: 0,
+    // Onboarding is a "Login" flow concept (see lib/onboarding-context.tsx)
+    // for real Supabase accounts — local/guest mode has no login step and
+    // already gets demo data seeded immediately, so it's never applicable.
+    onboardingCompleted: true,
   };
 }
 

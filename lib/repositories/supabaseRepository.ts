@@ -148,6 +148,7 @@ type SettingsRow = {
   default_account_id: string | null;
   theme: UserSettings["theme"];
   default_monthly_limit: number;
+  onboarding_completed: boolean;
   meta: AppData["meta"];
 };
 
@@ -290,6 +291,10 @@ function rowToSettings(r: SettingsRow): UserSettings {
     defaultAccountId: r.default_account_id ?? undefined,
     theme: r.theme,
     defaultMonthlyLimit: r.default_monthly_limit,
+    // Older rows predating this column come back as `undefined` from
+    // PostgREST only if the migration hasn't been applied yet — treat that
+    // the same as "completed" (the safe default), never as "needs onboarding".
+    onboardingCompleted: r.onboarding_completed ?? true,
   };
 }
 
@@ -474,12 +479,16 @@ export class SupabaseRepository implements DataRepository {
     if (error) throw dbError(error);
     if (!data) {
       // First time this user has ever loaded the app: create their row.
+      // onboardingCompleted: false is the one place a NEW user actually
+      // gets sent into onboarding — every pre-existing row instead relies
+      // on the column's own `default true` (see the migration).
       const defaults: UserSettings = {
         name: "Bạn",
         currency: "VND",
         financialMonthStartDay: 1,
         theme: "dark",
         defaultMonthlyLimit: 0,
+        onboardingCompleted: false,
       };
       await this.updateSettings(defaults);
       return defaults;
@@ -489,7 +498,7 @@ export class SupabaseRepository implements DataRepository {
 
   async updateSettings(settings: UserSettings): Promise<UserSettings> {
     const db = assertClient();
-    const { error } = await db.from("user_settings").upsert({
+    const row = {
       user_id: this.userId,
       name: settings.name,
       avatar_emoji: settings.avatarEmoji ?? null,
@@ -498,9 +507,22 @@ export class SupabaseRepository implements DataRepository {
       default_account_id: settings.defaultAccountId ?? null,
       theme: settings.theme,
       default_monthly_limit: settings.defaultMonthlyLimit,
+      onboarding_completed: settings.onboardingCompleted,
       updated_at: new Date().toISOString(),
-    });
-    if (error) throw dbError(error);
+    };
+    const { error } = await db.from("user_settings").upsert(row);
+    if (error) {
+      // Same class of issue as categories.image_data_url before it: if the
+      // 003_add_onboarding_completed migration hasn't been run yet on this
+      // database, retry without that one column so every OTHER setting
+      // (name, currency, budget, etc.) still saves instead of the whole
+      // update failing.
+      if (!isMissingColumnError(error, "onboarding_completed")) throw dbError(error);
+      const rowWithoutOnboarding = { ...row };
+      delete (rowWithoutOnboarding as { onboarding_completed?: unknown }).onboarding_completed;
+      const { error: retryError } = await db.from("user_settings").upsert(rowWithoutOnboarding);
+      if (retryError) throw dbError(retryError);
+    }
     return settings;
   }
 

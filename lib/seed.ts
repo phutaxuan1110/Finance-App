@@ -207,6 +207,7 @@ export function buildDemoData(): AppData {
     defaultAccountId: "acc_vcb",
     theme: "dark",
     defaultMonthlyLimit: 12_000_000,
+    onboardingCompleted: true,
   };
 
   return {

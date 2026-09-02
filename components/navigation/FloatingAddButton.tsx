@@ -1,5 +1,6 @@
 "use client";
 
+import { forwardRef } from "react";
 import { Plus } from "lucide-react";
 
 /**
@@ -11,10 +12,17 @@ import { Plus } from "lucide-react";
  *
  * Mobile-only (md:hidden): on desktop the equivalent action lives in the
  * Sidebar's own "Thêm giao dịch" button.
+ *
+ * forwardRef so the onboarding walkthrough (see components/onboarding/CoachMark.tsx)
+ * can spotlight this exact DOM node.
  */
-export function FloatingAddButton({ onClick }: { onClick: () => void }) {
+export const FloatingAddButton = forwardRef<HTMLButtonElement, { onClick: () => void }>(function FloatingAddButton(
+  { onClick },
+  ref
+) {
   return (
     <button
+      ref={ref}
       onClick={onClick}
       aria-label="Thêm giao dịch"
       className="fixed z-50 flex items-center justify-center rounded-full bg-accent text-white shadow-lg shadow-accent/40 transition-transform duration-200 active:scale-95 hover:bg-accent-hover md:hidden"
@@ -28,4 +36,4 @@ export function FloatingAddButton({ onClick }: { onClick: () => void }) {
       <Plus size={26} />
     </button>
   );
-}
+});

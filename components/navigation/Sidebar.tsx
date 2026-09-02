@@ -1,5 +1,6 @@
 "use client";
 
+import { forwardRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Plus } from "lucide-react";
@@ -8,7 +9,10 @@ import { NAV_ITEMS } from "./navItems";
 import { SnakeMascot } from "@/components/mascot/SnakeMascot";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
 
-export function Sidebar({ onAddClick }: { onAddClick: () => void }) {
+export const Sidebar = forwardRef<HTMLButtonElement, { onAddClick: () => void }>(function Sidebar(
+  { onAddClick },
+  addButtonRef
+) {
   const pathname = usePathname();
 
   return (
@@ -22,6 +26,7 @@ export function Sidebar({ onAddClick }: { onAddClick: () => void }) {
       </div>
 
       <button
+        ref={addButtonRef}
         onClick={onAddClick}
         className="mb-6 flex items-center justify-center gap-2 h-11 rounded-2xl bg-accent text-white font-medium hover:bg-accent-hover transition-colors"
       >
@@ -54,4 +59,4 @@ export function Sidebar({ onAddClick }: { onAddClick: () => void }) {
       </div>
     </aside>
   );
-}
+});

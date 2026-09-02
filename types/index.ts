@@ -98,6 +98,13 @@ export interface UserSettings {
   defaultAccountId?: string;
   theme: ThemePreference;
   defaultMonthlyLimit: number;
+  /** Has this user finished the first-run onboarding (profile setup +
+   * first-transaction walkthrough)? Defaults to `true` at the database
+   * level so every account that existed before this feature shipped is
+   * never retroactively sent through onboarding — only genuinely new
+   * signups get it, by explicitly setting this to `false` when their
+   * settings row is first created. */
+  onboardingCompleted: boolean;
 }
 
 export interface AppData {

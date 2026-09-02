@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { ArrowDownCircle, ArrowUpCircle, Camera, ChevronDown, Plus, Repeat, X } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
@@ -11,6 +11,8 @@ import { CategoryVisual } from "@/components/finance/CategoryVisual";
 import { cn, formatVNDInput, getErrorMessage, parseVNDInput, uid } from "@/lib/utils";
 import { useData } from "@/lib/data-context";
 import { useToast } from "@/lib/toast-context";
+import { useOnboarding } from "@/lib/onboarding-context";
+import { CoachMark } from "@/components/onboarding/CoachMark";
 import type { Transaction, TransactionType } from "@/types";
 import { buildDateRangeSeries, computeDateRangeDays, countDateRangeDays, MAX_DATE_RANGE_DAYS } from "@/lib/recurrence";
 import { CategoryFormDialog } from "@/components/finance/CategoryFormDialog";
@@ -62,6 +64,12 @@ function parseDateOnlyInputValue(value: string): Date | null {
 export function AddTransactionSheet({ open, onClose, editingTransaction, editScope = "only", prefillDate }: AddTransactionSheetProps) {
   const { data, saveTransaction, addTransactionsBatch, replaceTransactionsBatch } = useData();
   const { showToast } = useToast();
+  const { walkthroughActive, walkthroughStep, setWalkthroughStep, completeOnboarding } = useOnboarding();
+
+  const amountFieldRef = useRef<HTMLDivElement>(null);
+  const accountFieldRef = useRef<HTMLButtonElement>(null);
+  const categoryFieldRef = useRef<HTMLDivElement>(null);
+  const saveButtonRef = useRef<HTMLButtonElement>(null);
 
   const [step, setStep] = useState<"type" | "form">("type");
   const [type, setType] = useState<TransactionType>("expense");
@@ -116,6 +124,28 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
 
   const canSave =
     amountValue > 0 && !accountMissing && !categoryMissing && Boolean(dateValue) && !recurringRangeInvalid;
+
+  // --- Guided walkthrough (new-user onboarding) ---------------------------
+  // Whether a nested picker/creation sheet currently covers the form — the
+  // coach mark hides itself in that case (its target would be behind the
+  // nested sheet's backdrop) rather than fighting over z-index, and simply
+  // reappears once the user returns and the relevant field/step advanced.
+  const walkthroughSuppressed = categoryDialogOpen || accountPickerOpen || accountFormOpen;
+  const isFreshCreate = !editingTransaction;
+
+  // Entering the form (after the "+" was clicked) always starts at "amount".
+  useEffect(() => {
+    if (open && isFreshCreate && walkthroughActive && walkthroughStep === "button") {
+      setWalkthroughStep("amount");
+    }
+  }, [open, isFreshCreate, walkthroughActive, walkthroughStep, setWalkthroughStep]);
+
+  useEffect(() => {
+    if (!walkthroughActive || !isFreshCreate) return;
+    if (walkthroughStep === "amount" && amountValue > 0) setWalkthroughStep("account");
+    else if (walkthroughStep === "account" && accountId) setWalkthroughStep("category");
+    else if (walkthroughStep === "category" && categoryId) setWalkthroughStep("save");
+  }, [walkthroughActive, isFreshCreate, walkthroughStep, amountValue, accountId, categoryId, setWalkthroughStep]);
 
   useEffect(() => {
     if (!open) return;
@@ -265,6 +295,10 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
         }
         await addTransactionsBatch(series);
         showToast(`Đã tạo ${series.length} giao dịch.`);
+        if (isFreshCreate && walkthroughActive) {
+          await completeOnboarding();
+          showToast("Bạn đã sẵn sàng 🎉 Giao dịch đầu tiên đã được tạo.");
+        }
         onClose();
         return;
       }
@@ -295,6 +329,10 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
 
       await saveTransaction(transaction, editingTransaction ?? undefined);
       showToast(editingTransaction ? "Đã cập nhật giao dịch." : "Đã lưu giao dịch.");
+      if (isFreshCreate && walkthroughActive) {
+        await completeOnboarding();
+        showToast("Bạn đã sẵn sàng 🎉 Giao dịch đầu tiên đã được tạo.");
+      }
       onClose();
     } catch (err) {
       // A multi-day batch can fail partway through the underlying store;
@@ -330,7 +368,7 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
             <Button type="button" variant="secondary" className="flex-1" onClick={onClose} disabled={saving}>
               Huỷ
             </Button>
-            <Button type="submit" form="txn-form" className="flex-1" disabled={saving || !canSave}>
+            <Button ref={saveButtonRef} type="submit" form="txn-form" className="flex-1" disabled={saving || !canSave}>
               {saving ? "Đang lưu…" : "Lưu"}
             </Button>
           </div>
@@ -362,7 +400,7 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
           }}
         >
           {/* Amount - visual focus */}
-          <div className="flex flex-col items-center py-4">
+          <div ref={amountFieldRef} className="flex flex-col items-center py-4">
             <span className="text-xs text-text-muted mb-1">Số tiền</span>
             <div className="flex items-baseline gap-1">
               <input
@@ -388,6 +426,7 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
             <button
               type="button"
               id="accountField"
+              ref={accountFieldRef}
               onClick={() => setAccountPickerOpen(true)}
               className="flex h-12 w-full items-center justify-between rounded-2xl bg-white/[0.06] border border-white/[0.08] px-4 text-sm text-left outline-none transition-colors focus:border-accent-soft"
             >
@@ -399,7 +438,7 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
             {accountMissing && <p className="text-xs text-danger mt-1">Vui lòng chọn tài khoản hoặc ví.</p>}
           </div>
 
-          <div>
+          <div ref={categoryFieldRef}>
             <Label>Danh mục</Label>
             <div className="grid grid-cols-4 gap-2">
               {categories.map((c) => (
@@ -582,6 +621,36 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
         onClose={() => setAccountFormOpen(false)}
         onCreated={handleAccountCreated}
         layer="nested"
+      />
+
+      {/* Guided walkthrough: steps 2-5 (amount → account → category → save).
+          Step 1 ("+") lives in app/(app)/layout.tsx, before this sheet is
+          even open. Suppressed while a nested picker/creation sheet is open
+          (its target would be hidden behind that sheet's own backdrop) —
+          see `walkthroughSuppressed` above. */}
+      <CoachMark
+        targetRef={amountFieldRef}
+        active={open && isFreshCreate && walkthroughActive && !walkthroughSuppressed && walkthroughStep === "amount"}
+        title="Nhập số tiền"
+        description="Nhập số tiền của khoản thu hoặc khoản chi này."
+      />
+      <CoachMark
+        targetRef={accountFieldRef}
+        active={open && isFreshCreate && walkthroughActive && !walkthroughSuppressed && walkthroughStep === "account"}
+        title="Chọn nơi thanh toán"
+        description="Chọn tài khoản hoặc ví dùng cho giao dịch. Nếu chưa có, hãy tạo mới."
+      />
+      <CoachMark
+        targetRef={categoryFieldRef}
+        active={open && isFreshCreate && walkthroughActive && !walkthroughSuppressed && walkthroughStep === "category"}
+        title="Chọn danh mục"
+        description="Chọn danh mục phù hợp để biết tiền của bạn đang được dùng cho việc gì. Chưa có phù hợp thì bấm Thêm mới."
+      />
+      <CoachMark
+        targetRef={saveButtonRef}
+        active={open && isFreshCreate && walkthroughActive && !walkthroughSuppressed && walkthroughStep === "save"}
+        title="Hoàn tất giao dịch"
+        description="Bạn đã nhập đủ thông tin. Bấm Lưu để tạo giao dịch đầu tiên."
       />
     </Sheet>
   );
