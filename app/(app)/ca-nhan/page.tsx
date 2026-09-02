@@ -29,7 +29,7 @@ import { CategoryVisual } from "@/components/finance/CategoryVisual";
 import { CategoryFormDialog } from "@/components/finance/CategoryFormDialog";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
 import { CURRENCIES } from "@/lib/currency";
-import { cn, formatVND, formatVNDInput, parseVNDInput } from "@/lib/utils";
+import { cn, formatVND, formatVNDInput, getErrorMessage, parseVNDInput } from "@/lib/utils";
 import type { Category, CategoryKind, UserSettings } from "@/types";
 
 export default function SettingsPage() {
@@ -389,9 +389,16 @@ export default function SettingsPage() {
         confirmLabel="Xoá tất cả"
         onCancel={() => setWipeConfirmOpen(false)}
         onConfirm={async () => {
-          await wipeAllData();
-          showToast("Đã xoá toàn bộ dữ liệu.");
-          setWipeConfirmOpen(false);
+          try {
+            await wipeAllData();
+            showToast("Đã xoá toàn bộ dữ liệu.");
+            setWipeConfirmOpen(false);
+          } catch (err) {
+            // Never claim success or reset onboarding if the wipe itself
+            // failed partway through — keep the dialog open so the user
+            // sees the error and can retry.
+            showToast(getErrorMessage(err, "Không thể xoá dữ liệu. Vui lòng thử lại."), "error");
+          }
         }}
       />
 

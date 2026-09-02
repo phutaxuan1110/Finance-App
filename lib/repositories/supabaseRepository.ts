@@ -535,14 +535,41 @@ export class SupabaseRepository implements DataRepository {
 
   async wipeAllData(): Promise<AppData> {
     const db = assertClient();
-    await db.from("transactions").delete().eq("user_id", this.userId);
-    await db.from("budgets").delete().eq("user_id", this.userId);
-    await db.from("accounts").delete().eq("user_id", this.userId);
-    await db.from("categories").delete().eq("user_id", this.userId);
-    await db
-      .from("user_settings")
-      .update({ meta: {} })
-      .eq("user_id", this.userId);
+
+    // Check each delete's result explicitly (previously these were fired
+    // without ever looking at `.error`, so a failed delete silently
+    // "succeeded") — if any step fails, stop immediately rather than
+    // continuing on to reset onboarding/profile as though the wipe had
+    // fully completed.
+    const del1 = await db.from("transactions").delete().eq("user_id", this.userId);
+    if (del1.error) throw dbError(del1.error);
+    const del2 = await db.from("budgets").delete().eq("user_id", this.userId);
+    if (del2.error) throw dbError(del2.error);
+    const del3 = await db.from("accounts").delete().eq("user_id", this.userId);
+    if (del3.error) throw dbError(del3.error);
+    const del4 = await db.from("categories").delete().eq("user_id", this.userId);
+    if (del4.error) throw dbError(del4.error);
+
+    // Only once every table above is confirmed cleared: reset the app back
+    // to a first-time-user state — not just the transactional data, but
+    // the profile fields onboarding itself asks for (name, budget,
+    // currency) plus the onboarding flag itself, so "Xoá toàn bộ dữ liệu"
+    // genuinely re-runs the whole onboarding flow instead of dropping the
+    // user into an empty-but-already-onboarded app. This never touches the
+    // Supabase auth session/user — only this user's application data.
+    const current = await this.getSettings();
+    await this.updateSettings({
+      ...current,
+      name: "Bạn",
+      defaultMonthlyLimit: 0,
+      currency: "VND",
+      defaultAccountId: undefined,
+      onboardingCompleted: false,
+    });
+
+    const { error: metaError } = await db.from("user_settings").update({ meta: {} }).eq("user_id", this.userId);
+    if (metaError) throw dbError(metaError);
+
     return this.loadAll();
   }
 

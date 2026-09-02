@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "./auth-context";
 import { useData } from "./data-context";
 
@@ -46,6 +46,18 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const hasBudget = (data?.settings.defaultMonthlyLimit ?? 0) > 0;
   const showProfileSetup = needsOnboarding && !(hasName && hasBudget);
   const walkthroughActive = needsOnboarding && !showProfileSetup;
+
+  // `walkthroughStep` is deliberately ephemeral (not persisted) — but that
+  // means if a user already finished onboarding once (leaving this sitting
+  // at "save" from their first transaction) and then wipes all data,
+  // re-entering profile setup wouldn't otherwise touch it: the walkthrough
+  // would jump straight back in at "save" instead of restarting at "button".
+  // Resetting it here, on every fresh entry into profile setup, guarantees
+  // "Xoá toàn bộ dữ liệu" genuinely restarts the whole guided tour from the
+  // top, not just the profile screens.
+  useEffect(() => {
+    if (showProfileSetup) setWalkthroughStep("button");
+  }, [showProfileSetup]);
 
   const completeOnboarding = useCallback(async () => {
     if (!data) return;
