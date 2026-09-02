@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { SnakeMascot } from "@/components/mascot/SnakeMascot";
 import type { BudgetStatus } from "@/lib/calculations";
-import { formatVND } from "@/lib/utils";
+import { useCurrency } from "@/lib/currency-context";
 import type { MascotState } from "@/components/mascot/mascotLogic";
 
 export function BudgetCard({
@@ -16,6 +16,8 @@ export function BudgetCard({
   mascot: MascotState;
   onEditLimit: () => void;
 }) {
+  const { formatMoney } = useCurrency();
+
   if (status.limit <= 0) {
     return (
       <Card className="flex items-center gap-4">
@@ -38,7 +40,7 @@ export function BudgetCard({
       <div className="flex items-start justify-between gap-3 mb-4">
         <div>
           <p className="text-xs text-text-muted mb-1">Ngân sách tháng này</p>
-          <p className="text-3xl font-semibold tabular-nums">{formatVND(status.limit)}</p>
+          <p className="text-3xl font-semibold tabular-nums">{formatMoney(status.limit)}</p>
         </div>
         <SnakeMascot expression={mascot.expression} size={64} />
       </div>
@@ -46,8 +48,8 @@ export function BudgetCard({
       <ProgressBar percent={status.percentUsed} level={status.statusLevel} label={status.statusLabel} />
 
       <div className="grid grid-cols-3 gap-3 mt-4">
-        <Stat label="Đã chi" value={formatVND(status.spent)} />
-        <Stat label="Còn lại" value={formatVND(Math.max(status.remaining, 0))} />
+        <Stat label="Đã chi" value={formatMoney(status.spent)} />
+        <Stat label="Còn lại" value={formatMoney(Math.max(status.remaining, 0))} />
         <Stat label="Đã dùng" value={`${Math.round(status.percentUsed)}%`} />
       </div>
 
@@ -55,12 +57,12 @@ export function BudgetCard({
         <div>
           <p className="text-[11px] text-text-muted">An toàn để chi hôm nay</p>
           <p className="text-base font-semibold tabular-nums text-accent-soft">
-            {formatVND(status.safeToSpendToday)}
+            {formatMoney(status.safeToSpendToday)}
           </p>
         </div>
         <div className="text-right">
           <p className="text-[11px] text-text-muted">Dự báo cuối tháng</p>
-          <p className="text-base font-semibold tabular-nums">{formatVND(status.projectedSpending)}</p>
+          <p className="text-base font-semibold tabular-nums">{formatMoney(status.projectedSpending)}</p>
         </div>
       </div>
 

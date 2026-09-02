@@ -5,13 +5,13 @@ import { Upload } from "lucide-react";
 import { format, isSameDay } from "date-fns";
 import { useData } from "@/lib/data-context";
 import { useTransactionActions } from "@/lib/useTransactionActions";
+import { useCurrency } from "@/lib/currency-context";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/finance/EmptyState";
 import { TransactionRow } from "@/components/transactions/TransactionRow";
 import { TransactionFilters, type TransactionFilterState } from "@/components/transactions/TransactionFilters";
 import { ImportCsvSheet } from "@/components/transactions/ImportCsvSheet";
-import { formatVND } from "@/lib/utils";
 import type { Transaction } from "@/types";
 
 const EMPTY_FILTERS: TransactionFilterState = {
@@ -26,6 +26,7 @@ const EMPTY_FILTERS: TransactionFilterState = {
 export default function TransactionsPage() {
   const { data, loading } = useData();
   const actions = useTransactionActions();
+  const { formatMoney } = useCurrency();
 
   const [filters, setFilters] = useState<TransactionFilterState>(EMPTY_FILTERS);
   const [importOpen, setImportOpen] = useState(false);
@@ -109,7 +110,7 @@ export default function TransactionsPage() {
                 </p>
                 <p className="text-xs font-medium tabular-nums text-text-muted">
                   {dailyTotal(txs) >= 0 ? "+" : ""}
-                  {formatVND(dailyTotal(txs))}
+                  {formatMoney(dailyTotal(txs))}
                 </p>
               </div>
               <div className="divide-y divide-white/[0.06]">

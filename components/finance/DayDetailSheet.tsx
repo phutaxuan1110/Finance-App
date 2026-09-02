@@ -6,7 +6,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
 import { TransactionRow } from "@/components/transactions/TransactionRow";
 import { EmptyState } from "@/components/finance/EmptyState";
-import { formatVND } from "@/lib/utils";
+import { useCurrency } from "@/lib/currency-context";
 import type { Account, Category, Transaction } from "@/types";
 
 export function DayDetailSheet({
@@ -28,6 +28,7 @@ export function DayDetailSheet({
   onDelete: (t: Transaction) => void;
   onAddForDate: (date: Date) => void;
 }) {
+  const { formatMoney } = useCurrency();
   if (!date) return null;
 
   const dayTx = transactions
@@ -47,11 +48,11 @@ export function DayDetailSheet({
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-2xl bg-success/10 px-4 py-3">
             <p className="text-[11px] text-text-muted mb-0.5">Tổng thu</p>
-            <p className="text-sm font-semibold tabular-nums text-success">{formatVND(income)}</p>
+            <p className="text-sm font-semibold tabular-nums text-success">{formatMoney(income)}</p>
           </div>
           <div className="rounded-2xl bg-danger/10 px-4 py-3">
             <p className="text-[11px] text-text-muted mb-0.5">Tổng chi</p>
-            <p className="text-sm font-semibold tabular-nums text-danger">{formatVND(expense)}</p>
+            <p className="text-sm font-semibold tabular-nums text-danger">{formatMoney(expense)}</p>
           </div>
         </div>
 

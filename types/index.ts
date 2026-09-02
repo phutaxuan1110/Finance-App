@@ -86,10 +86,14 @@ export interface MonthlyBudget {
 
 export type ThemePreference = "dark" | "light" | "system";
 
+/** Currency the app DISPLAYS amounts in — underlying data is always stored
+ * in VND (see the file header comment); this only controls formatting. */
+export type DisplayCurrency = "VND" | "USD" | "AUD";
+
 export interface UserSettings {
   name: string;
   avatarEmoji?: string;
-  currency: string;
+  currency: DisplayCurrency;
   financialMonthStartDay: number; // 1-28
   defaultAccountId?: string;
   theme: ThemePreference;

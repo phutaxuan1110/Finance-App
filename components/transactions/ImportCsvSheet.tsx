@@ -6,8 +6,9 @@ import { Sheet } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
 import { Label, Select } from "@/components/ui/Input";
 import { useData } from "@/lib/data-context";
+import { useCurrency } from "@/lib/currency-context";
 import { useToast } from "@/lib/toast-context";
-import { formatVND, uid } from "@/lib/utils";
+import { uid } from "@/lib/utils";
 import type { Transaction } from "@/types";
 
 interface CsvRow {
@@ -45,6 +46,7 @@ function tryParseDate(value: string): string | null {
 
 export function ImportCsvSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { data, saveTransaction } = useData();
+  const { formatMoney } = useCurrency();
   const { showToast } = useToast();
 
   const [step, setStep] = useState<Step>("upload");
@@ -268,7 +270,7 @@ export function ImportCsvSheet({ open, onClose }: { open: boolean; onClose: () =
                 </div>
                 <span className={`text-sm font-medium tabular-nums ${row.type === "income" ? "text-success" : "text-danger"}`}>
                   {row.type === "income" ? "+" : "-"}
-                  {formatVND(row.amount ?? 0)}
+                  {formatMoney(row.amount ?? 0)}
                 </span>
               </button>
             ))}

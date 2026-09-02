@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { DataProvider } from "@/lib/data-context";
+import { CurrencyProvider } from "@/lib/currency-context";
 import { ToastProvider } from "@/lib/toast-context";
 import { BottomNav } from "@/components/navigation/BottomNav";
 import { FloatingAddButton } from "@/components/navigation/FloatingAddButton";
@@ -14,7 +15,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <ToastProvider>
       <DataProvider>
-        <AppShell>{children}</AppShell>
+        <CurrencyProvider>
+          <AppShell>{children}</AppShell>
+        </CurrencyProvider>
       </DataProvider>
     </ToastProvider>
   );

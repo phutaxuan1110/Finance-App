@@ -4,7 +4,8 @@ import { ArrowLeftRight, MoreVertical, Trash2, Pencil } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
 import { CategoryVisual } from "@/components/finance/CategoryVisual";
-import { cn, formatSignedVND } from "@/lib/utils";
+import { useCurrency } from "@/lib/currency-context";
+import { cn } from "@/lib/utils";
 import type { Account, Category, Transaction } from "@/types";
 
 interface TransactionRowProps {
@@ -25,6 +26,7 @@ export function TransactionRow({
   onDelete,
 }: TransactionRowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { formatSignedMoney } = useCurrency();
 
   return (
     <div className="flex items-center gap-3 py-3 px-1 group relative">
@@ -60,7 +62,7 @@ export function TransactionRow({
             transaction.type === "transfer" && "text-accent-soft"
           )}
         >
-          {formatSignedVND(transaction.amount, transaction.type)}
+          {formatSignedMoney(transaction.amount, transaction.type)}
         </p>
       </div>
 

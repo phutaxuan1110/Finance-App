@@ -1,7 +1,8 @@
 "use client";
 
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { formatVND } from "@/lib/utils";
+import { useCurrency } from "@/lib/currency-context";
+import { convertFromVND } from "@/lib/currency";
 
 export interface ComparisonPoint {
   label: string;
@@ -10,6 +11,23 @@ export interface ComparisonPoint {
 }
 
 export function IncomeExpenseBarChart({ data }: { data: ComparisonPoint[] }) {
+  const { currency, rates, formatMoney } = useCurrency();
+
+  // The Y-axis needs a compact tick format too, not just the tooltip — the
+  // old "Xtr" (triệu/millions) shorthand only makes sense for VND amounts,
+  // so once converted to USD/AUD (much smaller numbers) it switches to a
+  // standard compact currency format instead (e.g. "$1.2K").
+  function formatAxisTick(vndValue: number) {
+    if (currency === "VND") return `${Math.round(vndValue / 1_000_000)}tr`;
+    const converted = convertFromVND(vndValue, currency, rates);
+    return new Intl.NumberFormat(currency === "USD" ? "en-US" : "en-AU", {
+      style: "currency",
+      currency,
+      notation: "compact",
+      maximumFractionDigits: 1,
+    }).format(converted);
+  }
+
   return (
     <div className="h-56">
       <ResponsiveContainer width="100%" height="100%">
@@ -20,11 +38,11 @@ export function IncomeExpenseBarChart({ data }: { data: ComparisonPoint[] }) {
             tick={{ fill: "#A49DA0", fontSize: 10 }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={(v) => `${Math.round(v / 1_000_000)}tr`}
-            width={38}
+            tickFormatter={formatAxisTick}
+            width={currency === "VND" ? 38 : 52}
           />
           <Tooltip
-            formatter={(value, key) => [formatVND(Number(value)), key === "income" ? "Thu nhập" : "Chi tiêu"]}
+            formatter={(value, key) => [formatMoney(Number(value)), key === "income" ? "Thu nhập" : "Chi tiêu"]}
             contentStyle={{
               background: "#17171D",
               border: "1px solid rgba(255,255,255,0.1)",

@@ -3,11 +3,12 @@
 import { useMemo, useState } from "react";
 import { Lightbulb, ChevronLeft, ChevronRight } from "lucide-react";
 import { useData } from "@/lib/data-context";
+import { useCurrency } from "@/lib/currency-context";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { CategoryDonutChart } from "@/components/charts/CategoryDonutChart";
 import { IncomeExpenseBarChart, type ComparisonPoint } from "@/components/charts/IncomeExpenseBarChart";
 import { CategoryVisual } from "@/components/finance/CategoryVisual";
-import { cn, formatVND } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { categoryBreakdown, generateInsightsForPeriod, sumByType } from "@/lib/calculations";
 import {
   getPreviousPeriodRange,
@@ -22,6 +23,7 @@ import {
 
 export default function AnalysisPage() {
   const { data, loading, getBudgetFor } = useData();
+  const { formatMoney } = useCurrency();
   const [period, setPeriod] = useState<AnalysisPeriod>("month");
   const [anchor, setAnchor] = useState(new Date());
 
@@ -146,19 +148,19 @@ export default function AnalysisPage() {
             <CardTitle>{savingsTitle}</CardTitle>
           </div>
           <p className={cn("text-2xl font-semibold tabular-nums mt-2", savings >= 0 ? "text-success" : "text-danger")}>
-            {formatVND(savings)}
+            {formatMoney(savings)}
           </p>
           <p className="text-xs text-text-muted mt-1">Tỷ lệ tiết kiệm: {savingsRate.toFixed(0)}% thu nhập</p>
 
           <div className="grid grid-cols-2 gap-3 mt-5">
             <div className="rounded-2xl bg-white/[0.03] px-3 py-3">
               <p className="text-[11px] text-text-muted mb-1">{avgLabel}</p>
-              <p className="text-sm font-semibold tabular-nums">{formatVND(avgValue)}</p>
+              <p className="text-sm font-semibold tabular-nums">{formatMoney(avgValue)}</p>
             </div>
             <div className="rounded-2xl bg-white/[0.03] px-3 py-3">
               <p className="text-[11px] text-text-muted mb-1">Dự báo cuối kỳ</p>
               <p className="text-sm font-semibold tabular-nums">
-                {period === "month" && isCurrent ? formatVND(projectedSpending ?? 0) : "—"}
+                {period === "month" && isCurrent ? formatMoney(projectedSpending ?? 0) : "—"}
               </p>
             </div>
           </div>
@@ -192,7 +194,7 @@ export default function AnalysisPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium truncate">{item.category.name}</span>
-                        <span className="text-sm font-semibold tabular-nums">{formatVND(item.amount)}</span>
+                        <span className="text-sm font-semibold tabular-nums">{formatMoney(item.amount)}</span>
                       </div>
                       <div className="h-1.5 w-full rounded-full bg-white/[0.06] mt-1.5 overflow-hidden">
                         <div

@@ -2,7 +2,7 @@
 
 import { Check, Landmark, PiggyBank, Plus, Wallet } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
-import { formatVND } from "@/lib/utils";
+import { useCurrency } from "@/lib/currency-context";
 import type { Account } from "@/types";
 
 const TYPE_ICON = { bank: Landmark, cash: Wallet, savings: PiggyBank };
@@ -24,6 +24,8 @@ export function AccountPickerSheet({
   onSelect: (id: string) => void;
   onAddNew: () => void;
 }) {
+  const { formatMoney } = useCurrency();
+
   return (
     <Sheet open={open} onClose={onClose} title={title} layer="nested">
       <div className="flex flex-col gap-2">
@@ -49,7 +51,7 @@ export function AccountPickerSheet({
                 <p className="text-sm font-medium truncate">
                   {a.name} {a.isPrimary ? "· Chính" : ""}
                 </p>
-                <p className="text-xs text-text-muted truncate">{formatVND(a.balance)}</p>
+                <p className="text-xs text-text-muted truncate">{formatMoney(a.balance)}</p>
               </div>
               {selected && <Check size={18} className="text-accent-soft shrink-0" />}
             </button>

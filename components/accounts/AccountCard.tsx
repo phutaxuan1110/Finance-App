@@ -1,7 +1,7 @@
 "use client";
 
 import { Landmark, PiggyBank, Wallet, Star, Archive, Pencil } from "lucide-react";
-import { formatVND } from "@/lib/utils";
+import { useCurrency } from "@/lib/currency-context";
 import type { Account } from "@/types";
 
 const TYPE_ICON = { bank: Landmark, cash: Wallet, savings: PiggyBank };
@@ -16,6 +16,7 @@ export function AccountCard({
   onArchive: () => void;
 }) {
   const Icon = TYPE_ICON[account.type];
+  const { formatMoney } = useCurrency();
 
   return (
     <div className="glass-card p-4 flex items-center gap-4">
@@ -36,7 +37,7 @@ export function AccountCard({
         </p>
       </div>
       <div className="text-right">
-        <p className="text-sm font-semibold tabular-nums">{formatVND(account.balance)}</p>
+        <p className="text-sm font-semibold tabular-nums">{formatMoney(account.balance)}</p>
       </div>
       <div className="flex items-center gap-1">
         <button

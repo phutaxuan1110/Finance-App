@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useData } from "@/lib/data-context";
 import { useAuth } from "@/lib/auth-context";
+import { useCurrency } from "@/lib/currency-context";
 import { useToast } from "@/lib/toast-context";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -27,12 +28,14 @@ import { SnakeMascot } from "@/components/mascot/SnakeMascot";
 import { CategoryVisual } from "@/components/finance/CategoryVisual";
 import { CategoryFormDialog } from "@/components/finance/CategoryFormDialog";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
-import { formatVNDInput, parseVNDInput } from "@/lib/utils";
+import { CURRENCIES } from "@/lib/currency";
+import { cn, formatVND, formatVNDInput, parseVNDInput } from "@/lib/utils";
 import type { Category, CategoryKind, UserSettings } from "@/types";
 
 export default function SettingsPage() {
   const { data, loading, isCloudSynced, saveSettings, resetDemoData, wipeAllData, exportJSON, importJSON } = useData();
   const { user, isCloudEnabled, signOut } = useAuth();
+  const { currency, setCurrency, rates, ratesLoading, ratesError, refreshRates } = useCurrency();
   const { showToast } = useToast();
   const router = useRouter();
 
@@ -70,6 +73,14 @@ export default function SettingsPage() {
     };
     await saveSettings(settings);
     showToast("Đã lưu thông tin cá nhân.");
+  }
+
+  async function handleCurrencyChange(next: UserSettings["currency"]) {
+    try {
+      await setCurrency(next);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Không thể lưu đơn vị tiền tệ.", "error");
+    }
   }
 
   async function handleExport() {
@@ -207,10 +218,6 @@ export default function SettingsPage() {
             <Input id="settings-name" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div>
-            <Label htmlFor="settings-currency">Đơn vị tiền tệ</Label>
-            <Input id="settings-currency" value="VND (Việt Nam Đồng)" disabled />
-          </div>
-          <div>
             <Label htmlFor="settings-start-day">Ngày bắt đầu tháng tài chính</Label>
             <Select
               id="settings-start-day"
@@ -249,6 +256,43 @@ export default function SettingsPage() {
           </div>
           <Button onClick={handleSaveProfile}>Lưu thay đổi</Button>
         </div>
+      </Card>
+
+      <Card>
+        <CardTitle className="mb-1">Đơn vị tiền tệ hiển thị</CardTitle>
+        <p className="text-xs text-text-muted mb-4">
+          Chỉ đổi cách hiển thị số tiền trên toàn app — dữ liệu gốc vẫn luôn được lưu bằng VNĐ.
+        </p>
+        <div className="flex items-center gap-1 rounded-full bg-white/[0.06] border border-white/[0.08] p-1 w-fit">
+          {CURRENCIES.map((c) => (
+            <button
+              key={c.code}
+              onClick={() => handleCurrencyChange(c.code)}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-xs font-medium transition-colors min-h-[36px]",
+                currency === c.code ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"
+              )}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+
+        {currency !== "VND" && (
+          <div className="mt-3 text-xs text-text-muted">
+            {ratesLoading && "Đang tải tỷ giá…"}
+            {!ratesLoading && ratesError && <span className="text-danger">{ratesError}</span>}
+            {!ratesLoading && !ratesError && rates && (
+              <span>
+                Tỷ giá: 1 {currency} ≈ {formatVND(Math.round(1 / rates[currency]))} · cập nhật{" "}
+                {new Date(rates.fetchedAt).toLocaleString("vi-VN")}{" "}
+                <button onClick={refreshRates} className="text-accent-soft hover:underline">
+                  Làm mới
+                </button>
+              </span>
+            )}
+          </div>
+        )}
       </Card>
 
       <Card>

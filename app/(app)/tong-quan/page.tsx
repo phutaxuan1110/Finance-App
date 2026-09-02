@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useData } from "@/lib/data-context";
 import { useTransactionActions } from "@/lib/useTransactionActions";
+import { useCurrency } from "@/lib/currency-context";
 import { SnakeMascot } from "@/components/mascot/SnakeMascot";
 import { mascotForBudget } from "@/components/mascot/mascotLogic";
 import { MonthSwitcher } from "@/components/finance/MonthSwitcher";
@@ -22,7 +23,6 @@ import {
   totalBankBalance,
   transactionsInMonth,
 } from "@/lib/calculations";
-import { formatVND } from "@/lib/utils";
 
 function greeting() {
   const hour = new Date().getHours();
@@ -35,6 +35,7 @@ function greeting() {
 export default function DashboardPage() {
   const { data, loading, getBudgetFor } = useData();
   const actions = useTransactionActions();
+  const { formatMoney } = useCurrency();
 
   const today = new Date();
   const [month, setMonth] = useState(today.getMonth() + 1);
@@ -106,9 +107,9 @@ export default function DashboardPage() {
             </button>
           )}
         </div>
-        <p className="text-3xl font-semibold tabular-nums">{formatVND(displayedBalance)}</p>
+        <p className="text-3xl font-semibold tabular-nums">{formatMoney(displayedBalance)}</p>
         <p className="text-xs text-text-muted mt-1">
-          Ngân hàng: {formatVND(totalBankBalance(accounts))}
+          Ngân hàng: {formatMoney(totalBankBalance(accounts))}
         </p>
       </div>
 

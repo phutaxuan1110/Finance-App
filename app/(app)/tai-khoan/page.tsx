@@ -5,6 +5,7 @@ import { Plus, ArrowLeftRight } from "lucide-react";
 import { useData } from "@/lib/data-context";
 import { useToast } from "@/lib/toast-context";
 import { useTransactionActions } from "@/lib/useTransactionActions";
+import { useCurrency } from "@/lib/currency-context";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -13,7 +14,6 @@ import { AccountCard } from "@/components/accounts/AccountCard";
 import { AccountFormSheet } from "@/components/accounts/AccountFormSheet";
 import { TransferSheet } from "@/components/accounts/TransferSheet";
 import { TransactionRow } from "@/components/transactions/TransactionRow";
-import { formatVND } from "@/lib/utils";
 import { totalBalance } from "@/lib/calculations";
 import type { Account } from "@/types";
 
@@ -21,6 +21,7 @@ export default function AccountsPage() {
   const { data, loading, saveAccount } = useData();
   const { showToast } = useToast();
   const actions = useTransactionActions();
+  const { formatMoney } = useCurrency();
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
@@ -81,7 +82,7 @@ export default function AccountsPage() {
 
       <Card className="text-center">
         <p className="text-xs text-text-muted mb-1">Tổng số dư tất cả tài khoản</p>
-        <p className="text-3xl font-semibold tabular-nums">{formatVND(totalBalance(accounts))}</p>
+        <p className="text-3xl font-semibold tabular-nums">{formatMoney(totalBalance(accounts))}</p>
       </Card>
 
       {historyAccountId ? (

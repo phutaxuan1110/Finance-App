@@ -2,6 +2,7 @@ import type {
   Account,
   AppData,
   Category,
+  DisplayCurrency,
   MonthlyBudget,
   Transaction,
   UserSettings,
@@ -284,12 +285,19 @@ function rowToSettings(r: SettingsRow): UserSettings {
   return {
     name: r.name,
     avatarEmoji: r.avatar_emoji ?? undefined,
-    currency: r.currency,
+    currency: toDisplayCurrency(r.currency),
     financialMonthStartDay: r.financial_month_start_day,
     defaultAccountId: r.default_account_id ?? undefined,
     theme: r.theme,
     defaultMonthlyLimit: r.default_monthly_limit,
   };
+}
+
+/** The DB column is a plain `text` (pre-dating the DisplayCurrency type),
+ * so defensively fall back to VND for any unrecognized/legacy value rather
+ * than letting an unexpected string silently break currency formatting. */
+function toDisplayCurrency(value: string): DisplayCurrency {
+  return value === "USD" || value === "AUD" ? value : "VND";
 }
 
 function assertClient() {
