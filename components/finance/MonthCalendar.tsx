@@ -12,7 +12,9 @@ import {
 import { cn } from "@/lib/utils";
 import { CategoryIcon } from "@/lib/categoryIcons";
 import { WEEKDAY_LABELS_MON_FIRST } from "@/lib/period";
-import type { Category, Transaction } from "@/types";
+import { convertFromVND, type ExchangeRates } from "@/lib/currency";
+import { useCurrency } from "@/lib/currency-context";
+import type { Category, DisplayCurrency, Transaction } from "@/types";
 
 interface MonthCalendarProps {
   month: number; // 1-12
@@ -22,7 +24,26 @@ interface MonthCalendarProps {
   onSelectDay: (date: Date) => void;
 }
 
+/** Compact per-day expense label. Keeps the original VND "1.2tr"/"850k"
+ * shorthand for VND (unchanged from before), and uses a standard compact
+ * currency format for USD/AUD (e.g. "$45", "A$1.2K") — this used to be
+ * hardcoded to VND regardless of the selected display currency, which is
+ * exactly the "Lịch chi tiêu still shows VNĐ" bug. */
+function formatCompactExpense(amountVND: number, currency: DisplayCurrency, rates: ExchangeRates | null): string {
+  if (currency === "VND") {
+    return amountVND >= 1_000_000 ? `${(amountVND / 1_000_000).toFixed(1)}tr` : `${Math.round(amountVND / 1000)}k`;
+  }
+  const converted = convertFromVND(amountVND, currency, rates);
+  return new Intl.NumberFormat(currency === "USD" ? "en-US" : "en-AU", {
+    style: "currency",
+    currency,
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(converted);
+}
+
 export function MonthCalendar({ month, year, transactions, categories, onSelectDay }: MonthCalendarProps) {
+  const { currency, rates } = useCurrency();
   const monthAnchor = new Date(year, month - 1, 1);
   const start = startOfMonth(monthAnchor);
   const end = endOfMonth(monthAnchor);
@@ -92,9 +113,7 @@ export function MonthCalendar({ month, year, transactions, categories, onSelectD
               </div>
               {expenseTotal > 0 && (
                 <span className="text-[8px] text-danger tabular-nums leading-none">
-                  {expenseTotal >= 1_000_000
-                    ? `${(expenseTotal / 1_000_000).toFixed(1)}tr`
-                    : `${Math.round(expenseTotal / 1000)}k`}
+                  {formatCompactExpense(expenseTotal, currency, rates)}
                 </span>
               )}
             </button>
