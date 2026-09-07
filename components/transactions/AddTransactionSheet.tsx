@@ -105,15 +105,25 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
     [data, type]
   );
   const selectedAccount = accounts.find((a) => a.id === accountId);
+  const selectedCategory = categories.find((c) => c.id === categoryId);
   const isBulkScopeEdit = !!editingTransaction?.recurringSeriesId && editScope !== "only";
 
   // Real-time required-field state, independent of whether the user has
   // attempted to submit yet — the CTA's disabled state and the account /
   // category supporting text both need to reflect this live, not only
   // after a failed Save attempt.
+  //
+  // IMPORTANT: this checks that the id actually resolves to a CURRENT
+  // account/category, not just that the string is non-empty. `accountId`
+  // can get pre-filled from a saved default/"last used" id (see the reset
+  // effect below) that no longer exists — e.g. the account was later
+  // deleted. Checking truthiness alone let a stale id silently slip
+  // through as "valid", enabling Lưu with no account actually selected
+  // (visibly showing "Chọn tài khoản") and causing a foreign-key error
+  // from Supabase on save instead of a friendly, real-time hint.
   const amountValue = parseVNDInput(amountDisplay);
-  const accountMissing = !accountId;
-  const categoryMissing = !categoryId;
+  const accountMissing = !accountId || !selectedAccount;
+  const categoryMissing = !categoryId || !selectedCategory;
 
   const isNewRecurring = !editingTransaction && isRecurring;
   const rangeStart = parseDateOnlyInputValue(rangeStartStr);
@@ -291,8 +301,19 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
       setStep("type");
       setType("expense");
       setAmountDisplay("");
-      setAccountId(data?.settings.defaultAccountId || data?.meta.lastRecentAccountId || accounts[0]?.id || "");
-      setCategoryId(data?.meta.lastRecentCategoryId || "");
+      // Only trust a saved default/"last used" account or category id if it
+      // still resolves to something that actually exists today — one of
+      // them can be stale (e.g. the account/category was deleted since),
+      // and silently keeping a dangling id here is exactly what let a
+      // transaction reach Supabase with an account that no longer exists.
+      const liveAccounts = (data?.accounts ?? []).filter((a) => !a.isArchived);
+      const validAccountId = [data?.settings.defaultAccountId, data?.meta.lastRecentAccountId].find(
+        (id): id is string => !!id && liveAccounts.some((a) => a.id === id)
+      );
+      setAccountId(validAccountId ?? liveAccounts[0]?.id ?? "");
+      const expenseCategories = (data?.categories ?? []).filter((c) => c.type === "expense");
+      const lastCategoryId = data?.meta.lastRecentCategoryId;
+      setCategoryId(lastCategoryId && expenseCategories.some((c) => c.id === lastCategoryId) ? lastCategoryId : "");
       setMerchant("");
       setNote("");
       setDateValue(toLocalInputValue(initialDate));
@@ -343,8 +364,8 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
     const newErrors: Record<string, string> = {};
     const amount = parseVNDInput(amountDisplay);
     if (!amount || amount <= 0) newErrors.amount = "Vui lòng nhập số tiền hợp lệ.";
-    if (!accountId) newErrors.accountId = "Vui lòng chọn tài khoản hoặc ví.";
-    if (!categoryId) newErrors.categoryId = "Vui lòng chọn danh mục.";
+    if (!accountId || !selectedAccount) newErrors.accountId = "Vui lòng chọn tài khoản hoặc ví.";
+    if (!categoryId || !selectedCategory) newErrors.categoryId = "Vui lòng chọn danh mục.";
     if (!dateValue) newErrors.dateValue = "Vui lòng chọn ngày giờ.";
     if (isNewRecurring) {
       if (rangeMissing) newErrors.recurrence = "Vui lòng chọn từ ngày và đến ngày.";
