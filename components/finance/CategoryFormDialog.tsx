@@ -1,22 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { ImagePlus, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, ImagePlus, Trash2, X } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CategoryIcon, CATEGORY_ICON_OPTIONS } from "@/lib/categoryIcons";
+import { CATEGORY_COLOR_PALETTE, pickAvailableColor } from "@/lib/categoryColors";
 import { compressImageToDataUrl } from "@/lib/imageCompression";
 import { cn, getErrorMessage, uid } from "@/lib/utils";
 import { useData } from "@/lib/data-context";
 import { useToast } from "@/lib/toast-context";
 import type { Category, CategoryKind } from "@/types";
-
-const COLOR_OPTIONS = [
-  "#B76E79", "#8F4F5A", "#E5B96F", "#77C58A", "#E87878",
-  "#6FB3E5", "#9B7FD4", "#5FBFA8", "#D9A4AC", "#B08968",
-];
 
 interface CategoryFormDialogProps {
   open: boolean;
@@ -35,7 +31,7 @@ export function CategoryFormDialog({ open, onClose, kind, onSaved, editingCatego
 
   const [name, setName] = useState("");
   const [icon, setIcon] = useState(CATEGORY_ICON_OPTIONS[0]);
-  const [color, setColor] = useState(COLOR_OPTIONS[0]);
+  const [color, setColor] = useState(CATEGORY_COLOR_PALETTE[0]);
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>(undefined);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -45,6 +41,20 @@ export function CategoryFormDialog({ open, onClose, kind, onSaved, editingCatego
 
   const isEditing = !!editingCategory;
   const effectiveType: CategoryKind = editingCategory?.type ?? kind;
+
+  // Every OTHER category's color, so this category is guaranteed to end up
+  // unique — colors are shared visual identifiers across the whole app
+  // (chips, chart legend), not just within one income/expense group.
+  const otherCategoryColors = useMemo(
+    () =>
+      new Map(
+        (data?.categories ?? [])
+          .filter((c) => c.id !== editingCategory?.id)
+          .map((c) => [c.color.toLowerCase(), c.name] as const)
+      ),
+    [data?.categories, editingCategory?.id]
+  );
+  const colorTakenByOther = otherCategoryColors.get(color.toLowerCase());
 
   useEffect(() => {
     if (!open) return;
@@ -56,7 +66,11 @@ export function CategoryFormDialog({ open, onClose, kind, onSaved, editingCatego
     } else {
       setName("");
       setIcon(CATEGORY_ICON_OPTIONS[0]);
-      setColor(COLOR_OPTIONS[0]);
+      // Auto-pick the first color no existing category is already using,
+      // instead of always starting on the same swatch for every new
+      // category (which is exactly how categories used to end up sharing
+      // a color).
+      setColor(pickAvailableColor((data?.categories ?? []).map((c) => c.color)));
       setImageDataUrl(undefined);
     }
     setError("");
@@ -64,7 +78,7 @@ export function CategoryFormDialog({ open, onClose, kind, onSaved, editingCatego
     setImageProcessing(false);
     setDeleteConfirmOpen(false);
     setDeleting(false);
-  }, [open, editingCategory]);
+  }, [open, editingCategory]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -103,6 +117,10 @@ export function CategoryFormDialog({ open, onClose, kind, onSaved, editingCatego
     );
     if (duplicate) {
       setError("Danh mục này đã tồn tại.");
+      return;
+    }
+    if (colorTakenByOther) {
+      setError(`Màu này đang được dùng cho danh mục "${colorTakenByOther}". Vui lòng chọn màu khác.`);
       return;
     }
 
@@ -207,21 +225,38 @@ export function CategoryFormDialog({ open, onClose, kind, onSaved, editingCatego
         <div>
           <Label>Màu sắc</Label>
           <div className="flex flex-wrap gap-2">
-            {COLOR_OPTIONS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setColor(c)}
-                aria-label={`Chọn màu ${c}`}
-                aria-pressed={color === c}
-                className={cn(
-                  "h-9 w-9 rounded-full border-2 transition-transform",
-                  color === c ? "border-white scale-110" : "border-transparent"
-                )}
-                style={{ backgroundColor: c }}
-              />
-            ))}
+            {CATEGORY_COLOR_PALETTE.map((c) => {
+              const takenBy = otherCategoryColors.get(c.toLowerCase());
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setColor(c)}
+                  aria-label={takenBy ? `Màu ${c} (đã dùng cho danh mục ${takenBy})` : `Chọn màu ${c}`}
+                  aria-pressed={color === c}
+                  title={takenBy ? `Đã dùng cho "${takenBy}"` : undefined}
+                  className={cn(
+                    "relative h-9 w-9 rounded-full border-2 transition-transform",
+                    color === c ? "border-white scale-110" : "border-transparent",
+                    takenBy && "opacity-30"
+                  )}
+                  style={{ backgroundColor: c }}
+                >
+                  {color === c && !takenBy && (
+                    <Check size={14} className="absolute inset-0 m-auto text-white/90" strokeWidth={3} />
+                  )}
+                </button>
+              );
+            })}
           </div>
+          <p className="text-[11px] text-text-muted mt-2">
+            Mỗi danh mục cần một màu riêng để dễ phân biệt trên biểu đồ — màu đã mờ đi là màu đang dùng cho danh mục khác.
+          </p>
+          {colorTakenByOther && (
+            <p className="text-xs text-danger mt-1">
+              Màu này đang được dùng cho danh mục &quot;{colorTakenByOther}&quot;. Vui lòng chọn màu khác.
+            </p>
+          )}
         </div>
 
         <div>

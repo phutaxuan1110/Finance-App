@@ -15,10 +15,10 @@ export const DEFAULT_CATEGORIES: Category[] = [
   { id: "cat_gift", name: "Quà tặng", icon: "Gift", color: "#D9A4AC", type: "expense", isDefault: true },
   { id: "cat_other_expense", name: "Khác", icon: "MoreHorizontal", color: "#A49DA0", type: "expense", isDefault: true },
   { id: "cat_salary", name: "Lương", icon: "Wallet", color: "#77C58A", type: "income", isDefault: true },
-  { id: "cat_bonus", name: "Thưởng", icon: "Sparkles", color: "#77C58A", type: "income", isDefault: true },
-  { id: "cat_freelance", name: "Freelance", icon: "Laptop", color: "#77C58A", type: "income", isDefault: true },
-  { id: "cat_investment", name: "Đầu tư", icon: "TrendingUp", color: "#77C58A", type: "income", isDefault: true },
-  { id: "cat_other_income", name: "Khác", icon: "MoreHorizontal", color: "#77C58A", type: "income", isDefault: true },
+  { id: "cat_bonus", name: "Thưởng", icon: "Sparkles", color: "#E0B33C", type: "income", isDefault: true },
+  { id: "cat_freelance", name: "Freelance", icon: "Laptop", color: "#3FB6C4", type: "income", isDefault: true },
+  { id: "cat_investment", name: "Đầu tư", icon: "TrendingUp", color: "#7C83D9", type: "income", isDefault: true },
+  { id: "cat_other_income", name: "Khác", icon: "MoreHorizontal", color: "#9C97C4", type: "income", isDefault: true },
 ];
 
 function daysAgoISO(days: number, hour = 12, minute = 0): string {
