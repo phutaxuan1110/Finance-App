@@ -2,19 +2,22 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
-import { ArrowDownCircle, ArrowUpCircle, Camera, ChevronDown, Plus, Repeat, X } from "lucide-react";
+import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Camera, ChevronDown, Plus, Repeat, X } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Textarea } from "@/components/ui/Input";
 import { Switch } from "@/components/ui/Switch";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CategoryVisual } from "@/components/finance/CategoryVisual";
 import { cn, formatVNDInput, getErrorMessage, parseVNDInput, uid } from "@/lib/utils";
 import { useData } from "@/lib/data-context";
 import { useToast } from "@/lib/toast-context";
 import { useOnboarding } from "@/lib/onboarding-context";
+import { useCurrency } from "@/lib/currency-context";
 import { CoachMark } from "@/components/onboarding/CoachMark";
 import type { Transaction, TransactionType } from "@/types";
 import { buildDateRangeSeries, computeDateRangeDays, countDateRangeDays, MAX_DATE_RANGE_DAYS } from "@/lib/recurrence";
+import { sumByType, transactionsInMonth } from "@/lib/calculations";
 import { CategoryFormDialog } from "@/components/finance/CategoryFormDialog";
 import { AccountPickerSheet } from "@/components/accounts/AccountPickerSheet";
 import { AccountFormSheet } from "@/components/accounts/AccountFormSheet";
@@ -62,9 +65,10 @@ function parseDateOnlyInputValue(value: string): Date | null {
 }
 
 export function AddTransactionSheet({ open, onClose, editingTransaction, editScope = "only", prefillDate }: AddTransactionSheetProps) {
-  const { data, saveTransaction, addTransactionsBatch, replaceTransactionsBatch } = useData();
+  const { data, saveTransaction, addTransactionsBatch, replaceTransactionsBatch, getBudgetFor } = useData();
   const { showToast } = useToast();
   const { walkthroughActive, walkthroughStep, setWalkthroughStep, completeOnboarding } = useOnboarding();
+  const { formatMoney } = useCurrency();
 
   const amountFieldRef = useRef<HTMLDivElement>(null);
   const accountFieldRef = useRef<HTMLButtonElement>(null);
@@ -124,6 +128,118 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
 
   const canSave =
     amountValue > 0 && !accountMissing && !categoryMissing && Boolean(dateValue) && !recurringRangeInvalid;
+
+  // --- Monthly budget check ------------------------------------------------
+  // Warn (and require an explicit confirmation) when this expense would
+  // push the affected month's total spending past its budget limit. Only
+  // applies to expenses with a budget actually set (limit > 0) for the
+  // relevant month(s) — never blocks saving, just makes the user consciously
+  // acknowledge it first.
+  const [budgetConfirmOpen, setBudgetConfirmOpen] = useState(false);
+
+  const parsedDateValue = useMemo(() => {
+    if (!dateValue) return null;
+    const d = new Date(dateValue);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }, [dateValue]);
+
+  interface BudgetWarning {
+    month: number;
+    year: number;
+    limit: number;
+    alreadySpent: number;
+    projectedTotal: number;
+    overBy: number;
+  }
+
+  const budgetWarning: BudgetWarning | null = useMemo(() => {
+    if (type !== "expense" || amountValue <= 0 || !data) return null;
+
+    // Which transaction ids to exclude from "already spent" so we don't
+    // double-count the transaction(s) currently being edited.
+    const excludeIds = new Set<string>();
+    if (editingTransaction) {
+      if (isBulkScopeEdit && editingTransaction.recurringSeriesId) {
+        const seriesId = editingTransaction.recurringSeriesId;
+        const anchorIndex = editingTransaction.recurrenceIndex ?? 0;
+        data.transactions.forEach((t) => {
+          if (t.recurringSeriesId === seriesId && (editScope === "all" || (t.recurrenceIndex ?? 0) >= anchorIndex)) {
+            excludeIds.add(t.id);
+          }
+        });
+      } else {
+        excludeIds.add(editingTransaction.id);
+      }
+    }
+
+    // Build a list of { month, year, addedAmount } this save will affect.
+    let impacts: { month: number; year: number; addedAmount: number }[] = [];
+    if (isNewRecurring && rangeStart && rangeEnd) {
+      const counts = new Map<string, { month: number; year: number; count: number }>();
+      for (const day of computeDateRangeDays(rangeStart, rangeEnd)) {
+        const month = day.getMonth() + 1;
+        const year = day.getFullYear();
+        const key = `${year}-${month}`;
+        const existing = counts.get(key);
+        if (existing) existing.count += 1;
+        else counts.set(key, { month, year, count: 1 });
+      }
+      impacts = Array.from(counts.values()).map(({ month, year, count }) => ({
+        month,
+        year,
+        addedAmount: amountValue * count,
+      }));
+    } else if (isBulkScopeEdit) {
+      const scopeCount = excludeIds.size || 1;
+      if (parsedDateValue) {
+        impacts = [
+          {
+            month: parsedDateValue.getMonth() + 1,
+            year: parsedDateValue.getFullYear(),
+            addedAmount: amountValue * scopeCount,
+          },
+        ];
+      }
+    } else if (parsedDateValue) {
+      impacts = [
+        {
+          month: parsedDateValue.getMonth() + 1,
+          year: parsedDateValue.getFullYear(),
+          addedAmount: amountValue,
+        },
+      ];
+    }
+
+    // Find the worst affected month (largest overBy), if any.
+    let worst: BudgetWarning | null = null;
+    for (const { month, year, addedAmount } of impacts) {
+      const budget = getBudgetFor(month, year);
+      if (!budget || budget.limit <= 0) continue;
+      const alreadySpent = sumByType(
+        transactionsInMonth(data.transactions, month, year).filter((t) => !excludeIds.has(t.id)),
+        "expense"
+      );
+      const projectedTotal = alreadySpent + addedAmount;
+      if (projectedTotal <= budget.limit) continue;
+      const overBy = projectedTotal - budget.limit;
+      if (!worst || overBy > worst.overBy) {
+        worst = { month, year, limit: budget.limit, alreadySpent, projectedTotal, overBy };
+      }
+    }
+    return worst;
+  }, [
+    type,
+    amountValue,
+    data,
+    editingTransaction,
+    isBulkScopeEdit,
+    editScope,
+    isNewRecurring,
+    rangeStart,
+    rangeEnd,
+    parsedDateValue,
+    getBudgetFor,
+  ]);
 
   // --- Guided walkthrough (new-user onboarding) ---------------------------
   // Whether a nested picker/creation sheet currently covers the form — the
@@ -239,10 +355,20 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
     return Object.keys(newErrors).length === 0;
   }
 
-  async function handleSubmit() {
+  function handleSubmit() {
     if (saving) return; // guard against double-click creating duplicate series
     if (!canSave) return; // CTA should already be disabled in this case, but never trust that alone
     if (!validate()) return;
+    // Require an explicit confirmation before saving an expense that would
+    // push a month over its budget — the user can still choose to proceed.
+    if (budgetWarning) {
+      setBudgetConfirmOpen(true);
+      return;
+    }
+    void performSave();
+  }
+
+  async function performSave() {
     setSaving(true);
 
     try {
@@ -420,6 +546,17 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
             </div>
             {errors.amount && <p className="text-xs text-danger mt-2">{errors.amount}</p>}
           </div>
+
+          {budgetWarning && (
+            <div className="flex items-start gap-2.5 rounded-2xl border border-danger/30 bg-danger/10 px-4 py-3 text-danger">
+              <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+              <p className="text-xs leading-relaxed">
+                Giao dịch này có thể khiến bạn vượt ngân sách tháng {budgetWarning.month}/{budgetWarning.year} khoảng{" "}
+                <span className="font-semibold">{formatMoney(budgetWarning.overBy)}</span> (dự kiến chi{" "}
+                {formatMoney(budgetWarning.projectedTotal)} / hạn mức {formatMoney(budgetWarning.limit)}).
+              </p>
+            </div>
+          )}
 
           <div>
             <Label htmlFor="accountField">Tài khoản / ví</Label>
@@ -622,6 +759,24 @@ export function AddTransactionSheet({ open, onClose, editingTransaction, editSco
         onCreated={handleAccountCreated}
         layer="nested"
       />
+
+      {budgetWarning && (
+        <ConfirmDialog
+          open={budgetConfirmOpen}
+          title="Có thể vượt ngân sách tháng"
+          description={`Giao dịch này sẽ đưa tổng chi tháng ${budgetWarning.month}/${budgetWarning.year} lên ${formatMoney(
+            budgetWarning.projectedTotal
+          )}, vượt hạn mức ${formatMoney(budgetWarning.limit)} khoảng ${formatMoney(budgetWarning.overBy)}. Bạn có muốn tiếp tục lưu không?`}
+          confirmLabel="Vẫn lưu"
+          cancelLabel="Xem lại"
+          danger={false}
+          onCancel={() => setBudgetConfirmOpen(false)}
+          onConfirm={() => {
+            setBudgetConfirmOpen(false);
+            void performSave();
+          }}
+        />
+      )}
 
       {/* Guided walkthrough: steps 2-5 (amount → account → category → save).
           Step 1 ("+") lives in app/(app)/layout.tsx, before this sheet is

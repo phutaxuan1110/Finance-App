@@ -15,6 +15,10 @@ import {
   Sparkles,
   Laptop,
   TrendingUp,
+  WashingMachine,
+  SprayCan,
+  Smartphone,
+  Shirt,
   type LucideIcon,
 } from "lucide-react";
 
@@ -35,6 +39,12 @@ export const ICON_MAP: Record<string, LucideIcon> = {
   Sparkles,
   Laptop,
   TrendingUp,
+  // Added to cover previously-missing categories (giặt ủi, mỹ phẩm, điện
+  // thoại/5G, thời trang) that used to fall back to a mismatched icon.
+  WashingMachine,
+  SprayCan,
+  Smartphone,
+  Shirt,
 };
 
 export function CategoryIcon({

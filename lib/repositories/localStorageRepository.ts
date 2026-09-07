@@ -1,6 +1,6 @@
 import type { Account, AppData, Category, MonthlyBudget, Transaction, UserSettings } from "@/types";
 import { buildDemoData } from "@/lib/seed";
-import { ensureCategoryTypes } from "@/lib/categoryMigration";
+import { ensureCategoryTypes, upgradeMismatchedCategoryIcons } from "@/lib/categoryMigration";
 import { storageGet, storageSet, storageClearAll } from "./storage";
 import type { DataRepository } from "./types";
 
@@ -40,7 +40,7 @@ function readData(): AppData {
   // Self-healing migration: backfill any category missing a valid
   // income/expense type (see lib/categoryMigration.ts). Safe no-op for
   // every category this app has ever created itself.
-  const migratedCategories = ensureCategoryTypes(data.categories, data.transactions);
+  const migratedCategories = upgradeMismatchedCategoryIcons(ensureCategoryTypes(data.categories, data.transactions));
   if (migratedCategories.some((c, i) => c !== data.categories[i])) {
     data.categories = migratedCategories;
     storageSet(DATA_KEY, data);

@@ -8,7 +8,7 @@ import type {
   UserSettings,
 } from "@/types";
 import { buildDemoData } from "@/lib/seed";
-import { ensureCategoryTypes } from "@/lib/categoryMigration";
+import { ensureCategoryTypes, upgradeMismatchedCategoryIcons } from "@/lib/categoryMigration";
 import { supabase } from "@/lib/supabase/client";
 import { getErrorMessage } from "@/lib/utils";
 import type { DataRepository } from "./types";
@@ -415,12 +415,14 @@ export class SupabaseRepository implements DataRepository {
     // lib/categoryMigration.ts) — a no-op for every category this app has
     // ever created itself, but protects hand-edited/imported data.
     const { data: txData } = await db.from("transactions").select("category_id, type");
-    const migrated = ensureCategoryTypes(
-      categories,
-      (txData ?? []).map((t: { category_id: string | null; type: Transaction["type"] }) => ({
-        categoryId: t.category_id ?? undefined,
-        type: t.type,
-      }))
+    const migrated = upgradeMismatchedCategoryIcons(
+      ensureCategoryTypes(
+        categories,
+        (txData ?? []).map((t: { category_id: string | null; type: Transaction["type"] }) => ({
+          categoryId: t.category_id ?? undefined,
+          type: t.type,
+        }))
+      )
     );
     const changed = migrated.filter((c, i) => c !== categories[i]);
     if (changed.length > 0) {
